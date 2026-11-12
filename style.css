@@ -407,6 +407,16 @@ mark.todo { background: #ffe27a; color: #3a2e00; padding: 0 4px; border-radius: 
 
 /* таблицы не шире экрана на очень узких телефонах */
 @media (max-width: 340px) { .about th, .about td { overflow-wrap: anywhere; } }
+/* «Собери сам»: быстрая кнопка, сумма услуг, прайс */
+.ss-quick { background: var(--card); border: 1px solid var(--gold); border-radius: 16px; padding: 14px 18px; max-width: 640px; margin: 8px 0 24px; }
+.ss-quick p { margin: 0 0 10px; }
+.ss-quick p:last-child { margin: 0; }
+.ss-sum { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 10px; }
+.table-wrap { overflow-x: auto; max-width: 860px; }
+.price-t th { width: auto; }
+.price-t td:not(:first-child), .price-t th:not(:first-child) { white-space: nowrap; }
+.ss-notes { margin-top: 12px; }
+.ss-price { margin-top: 28px; }
 
 /* ---- выбор номера WhatsApp (выпадающее окно у любой кнопки WhatsApp) ---- */
 .wa-pop { position: absolute; z-index: 70; min-width: 250px; max-width: calc(100vw - 16px); background: var(--card-solid); border: 1px solid var(--line); border-radius: 14px; padding: 10px; box-shadow: 0 14px 34px rgba(0, 0, 0, .28); }
