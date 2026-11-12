@@ -3,6 +3,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { PRICES, DECORS, FILM_COLORS, PAINT_COLORS } from "./shkaf-prices.js";
+import { makeKP } from "./shkaf-kp.js";
 
 const WA = "https://wa.me/77769994032";
 const $ = (s, r) => (r || document).querySelector(s);
@@ -22,14 +23,19 @@ const FMATS = {
 };
 const MILLS = { modern: "Модерн", shtapik: "Штапик", vyborka: "Выборка", classic: "Классика" };
 // Варианты наполнения: что стоит в отделениях слева направо (повторяется по кругу).
-// ПРОБНЫЕ: будут подогнаны под ваши примеры расположения полок и ящиков.
+// Это быстрый выбор: дальше количество полок, ящиков и штанг меняется в каждом отделении вручную.
 const FILLS = {
   A: { name: "Полки и штанга", seq: ["shelves", "rod"], single: "rod" },
   B: { name: "С ящиками", seq: ["drawers", "rod", "shelves"], single: "drawers" },
   C: { name: "Только полки", seq: ["shelves"], single: "shelves" },
 };
+const MAX = { s: 10, d: 4, r: 2 };   // сколько максимум можно выбрать в одном отделении
+const DRAWER = 220;                   // шаг ящика по высоте, мм
+const HANG = 850;                     // минимум места под одну штангу (длина одежды), мм
 
-const state = { type: "swing", W: 2000, H: 2400, D: 600, A: 500, doors: 4, fill: "A",
+// state.secs — что стоит в каждом отделении: s полки, d ящики, r штанги.
+// fill = "custom", когда клиент поменял количество вручную.
+const state = { type: "swing", W: 2000, H: 2400, D: 600, A: 500, doors: 4, fill: "A", secs: [],
   body: "white", fmat: "ldsp", mill: "modern", facade: "white", open: false };
 const findIn = (list, id) => list.find((d) => d.id === id) || list[0];
 const decor = (id) => findIn(DECORS, id);
@@ -55,38 +61,77 @@ function normalize() {
   const [lo, hi] = doorRange();
   state.doors = Math.min(hi, Math.max(lo, state.doors));
   if (!FMATS[state.fmat].list.some((c) => c.id === state.facade)) state.facade = FMATS[state.fmat].list[0].id;
+  // наполнение по отделениям: из быстрого выбора или то, что клиент выставил вручную
+  const n = sectionCounts(state).length, span = mainSpan(state);
+  const kinds = fillKinds(state.fill === "custom" ? "A" : state.fill, n);
+  const old = state.fill === "custom" ? state.secs : [];
+  state.secs = kinds.map((kind, k) => fitCounts(old[k] || presetCounts(kind, span), span));
 }
 
 /* ---------- отделения: двери крепятся только к боковинам и перегородкам ---------- */
 // 2 двери на отделение; если дверей нечётное число, последнее отделение на одну дверь
+function sectionCounts(s) {
+  const counts = [];
+  for (let left = s.doors; left > 0; left -= left >= 2 ? 2 : 1) counts.push(left >= 2 ? 2 : 1);
+  return counts;
+}
+function mainSpan(s) {
+  const yTop = s.type === "antresol" ? s.H - s.A - T / 2 : s.H - T;
+  return yTop - (PLINTH + T);
+}
+function fillKinds(fill, n) {
+  const f = FILLS[fill];
+  return Array.from({ length: n }, (_, k) => (n === 1 ? f.single : f.seq[k % f.seq.length]));
+}
+// стартовое количество для варианта из быстрого выбора
+function presetCounts(kind, span) {
+  if (kind === "rod") return { s: 1, d: 0, r: 1 };
+  if (kind === "drawers") return { s: Math.max(2, Math.round((span - 10 - 3 * DRAWER) / 380) - 1), d: 3, r: 0 };
+  return { s: Math.max(3, Math.min(7, Math.round(span / 380) - 1)), d: 0, r: 0 };
+}
+// сколько реально помещается по высоте: ящики снизу, штанги сверху (над первой — полка под шапки), полки в остатке
+function fitCounts(c, span) {
+  const d = Math.max(0, Math.min(c.d, MAX.d, Math.floor((span - 400) / DRAWER)));
+  const free = span - 10 - d * DRAWER;
+  const r = Math.max(0, Math.min(c.r, MAX.r, Math.floor((free - (c.s > 0 ? 300 : 0)) / HANG)));
+  let s;
+  if (r) {
+    const hat = c.s > 0 ? 1 : 0;
+    s = Math.min(c.s, hat + Math.max(0, Math.floor((free - hat * 300 - r * HANG) / 200)));
+  } else {
+    s = Math.min(c.s, Math.max(0, Math.floor(free / 170) - 1));
+  }
+  return { s: Math.max(0, Math.min(MAX.s, s)), d, r };
+}
 function layout(s) {
-  const n = s.doors, dw = s.W / n, counts = [];
-  for (let left = n; left > 0; left -= left >= 2 ? 2 : 1) counts.push(left >= 2 ? 2 : 1);
+  const counts = sectionCounts(s), dw = s.W / s.doors, span = mainSpan(s);
+  const kinds = fillKinds(s.fill === "custom" ? "A" : s.fill, counts.length);
   let x = -s.W / 2;
   return counts.map((d, k) => {
     const x0 = x, x1 = x + d * dw;
     x = x1;
     const inL = x0 + (k === 0 ? T : T / 2), inR = x1 - (k === counts.length - 1 ? T : T / 2);
-    const fill = counts.length === 1 ? FILLS[s.fill].single : FILLS[s.fill].seq[k % FILLS[s.fill].seq.length];
-    return { doors: d, x0, x1, inL, inR, w: inR - inL, cx: (inL + inR) / 2, fill };
+    const cnt = (s.secs && s.secs[k]) || fitCounts(presetCounts(kinds[k], span), span);
+    return { doors: d, x0, x1, inL, inR, w: inR - inL, cx: (inL + inR) / 2, cnt };
   });
 }
 // что внутри отделения: высоты полок, штанг, ящиков (мм от пола)
 function contents(sec, yBottom, yTop) {
   const out = { shelves: [], rods: [], drawers: [] };
-  const span = yTop - yBottom;
-  if (sec.fill === "rod" && span > 900) {
-    const hat = yTop - 300;                       // полка для головных уборов
-    out.shelves.push(hat);
-    out.rods.push(hat - 70);
-  } else if (sec.fill === "drawers") {
-    let y = yBottom + 10;
-    for (let i = 0; i < 3; i++) { out.drawers.push(y + 95); y += 220; }
-    const free = yTop - y, n = Math.max(2, Math.round(free / 380) - 1);
-    for (let i = 1; i <= n; i++) out.shelves.push(y + (free * i) / (n + 1));
+  const { s, d, r } = sec.cnt;
+  let lo = yBottom + 10;
+  for (let i = 0; i < d; i++) { out.drawers.push(lo + 95); lo += DRAWER; }
+  if (d) out.shelves.push(lo - 25);                 // над ящиками всегда полка (в счёт «Полки» не входит)
+  let left = s;
+  if (r) {
+    let top = yTop;
+    if (left > 0) { top = yTop - 300; out.shelves.push(top); left--; }   // полка для головных уборов
+    const block = Math.min(1050, (top - lo - left * 200) / r);
+    for (let i = 0; i < r; i++) out.rods.push(top - i * block - 70);
+    const bottom = top - r * block;                                     // ниже одежды — остальные полки
+    for (let i = 1; i <= left; i++) out.shelves.push(lo + ((bottom - lo) * i) / left);
   } else {
-    const n = Math.max(3, Math.min(7, Math.round(span / 380) - 1));
-    for (let i = 1; i <= n; i++) out.shelves.push(yBottom + (span * i) / (n + 1));
+    for (let i = 1; i <= left; i++) out.shelves.push(lo + ((yTop - lo) * i) / (left + 1));
   }
   return out;
 }
@@ -123,30 +168,36 @@ export function estimate(s) {
   const facade = s.doors * (m2(doorW, mainDoorH) + (anti ? m2(doorW, antDoorH) : 0));
   const facadePerim = s.doors * (2 * (doorW + mainDoorH) + (anti ? 2 * (doorW + antDoorH) : 0));
 
-  const cost = (tier, area) => (area * P.waste / P.sheet[tier].area) * P.sheet[tier].price;
-  const sheets = (tier, area) => (area * P.waste) / P.sheet[tier].area;
-  const bt = decor(s.body).tier;
-  let material = cost(bt, body), nSheets = sheets(bt, body), facadeCost = 0;
+  // ЛДСП целыми листами (лист уже с распилом и присадкой); корпус и фасады одного декора — из общих листов
+  const area = {};
+  const addArea = (id, a) => { area[id] = (area[id] || 0) + a; };
+  addArea(s.body, body);
+  let facadeCost = 0;
   if (s.fmat === "ldsp") {
-    const ft = decor(s.facade).tier;
-    material += cost(ft, facade); nSheets += sheets(ft, facade); edgeMM += facadePerim;
+    addArea(s.facade, facade); edgeMM += facadePerim;
   } else {
-    facadeCost = facade * P.facade[s.fmat] * P.facade.mill[s.mill];
+    facadeCost = facade * P.facade[s.fmat][s.mill === "modern" ? "plain" : "frame"];
   }
-  const process = nSheets * (P.perSheet.cut + P.perSheet.drill + P.perSheet.pack);
-  const edging = (edgeMM / 1000) * P.edgePerM;
-  const back = m2(W, H) * P.backPanelPerM2;
+  let material = 0;
+  for (const [id, a] of Object.entries(area)) {
+    const sh = P.sheet[decor(id).tier];
+    material += Math.ceil(a / (sh.area * P.use.ldsp)) * sh.price;
+  }
+  const edging = (edgeMM / 1000) * 1.05 * P.edgePerM;
+  const back = Math.ceil(m2(W, H) / (P.back.area * P.use.back)) * P.back.price;
 
   const hw = P.hardware;
-  const hingesPerDoor = mainDoorH > 1500 ? 4 : mainDoorH > 900 ? 3 : 2;
-  let hardware = nShelves * hw.shelfPins + nRods * hw.rod + nDrawers * (hw.drawerSet + hw.handle);
+  const hingesPerDoor = mainDoorH > 2000 ? 5 : mainDoorH > 1600 ? 4 : mainDoorH > 900 ? 3 : 2;
+  let rodLen = 0;
+  for (const sec of secs) rodLen += contents(sec, yBottom, yTop).rods.length * sec.w / 1000;
+  let hardware = hw.kit + nRods * hw.rod + rodLen * hw.rodPerM + nDrawers * hw.drawer;
   hardware += s.doors * (hingesPerDoor * hw.hinge + hw.handle);
   if (anti) hardware += s.doors * (2 * hw.hinge + hw.handle);
-  const work = facade * P.workPerM2Facade;
+  const design = (W / 1000) * P.designPerM;
 
-  const base = (material + facadeCost + process + edging + back + hardware + work) * P.markup;
+  const base = material + facadeCost + edging + back + hardware + design;
   const r = (x) => Math.round(x / P.roundTo) * P.roundTo;
-  const partsOut = { "Материал корпуса": material, "Распил, присадка, упаковка": process, "Кромка": edging, "Задняя стенка": back, "Фурнитура": hardware, "Сборка и монтаж": work };
+  const partsOut = { "ЛДСП с распилом и присадкой": material, "Кромка": edging, "Задняя стенка ЛХДФ": back, "Фурнитура DTC и установка ручек": hardware, "Работа конструктора": design };
   if (facadeCost) partsOut["Фасады МДФ"] = facadeCost;
   return { mid: base, low: r(base * P.range.low), high: r(base * P.range.high), parts: partsOut };
 }
@@ -214,43 +265,100 @@ function tick() {
   renderer.render(scene, camera);
 }
 
-// текстура дерева рисуется в браузере (вертикальные волокна поверх цвета декора)
+// Текстура дерева рисуется в браузере: годовые кольца с «арками» (как на распиле доски),
+// волокна, поры и пятна. Узор бесшовный, поэтому повторяется на больших панелях без стыков.
+// Один кадр текстуры = TEX_W × TEX_H мм реального размера.
+const TEX_W = 500, TEX_H = 1000;
+function woodCanvas(hex, w, h) {
+  let seed = 7;
+  for (const ch of hex) seed = (seed * 31 + ch.charCodeAt(0)) % 2147483647;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const P = new Float32Array(256 * 256);
+  for (let i = 0; i < P.length; i++) P[i] = rnd();
+  const sm = (t) => t * t * (3 - 2 * t);
+  // бесшовный шум: решётка повторяется с периодом px × py
+  const noise = (x, y, px, py) => {
+    const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+    const x0 = ((xi % px) + px) % px, y0 = ((yi % py) + py) % py, x1 = (x0 + 1) % px, y1 = (y0 + 1) % py;
+    const a = P[y0 * 256 + x0], b = P[y0 * 256 + x1], c = P[y1 * 256 + x0], d = P[y1 * 256 + x1];
+    const u = sm(xf), v = sm(yf);
+    return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+  };
+  const fbm = (x, y, px, py) => (noise(x, y, px, py) * 0.57 + noise(x * 2, y * 2, px * 2, py * 2) * 0.29 + noise(x * 4, y * 4, px * 4, py * 4) * 0.14);
+  const n = parseInt(hex.slice(1), 16), R = (n >> 16) / 255, G = ((n >> 8) & 255) / 255, B = (n & 255) / 255;
+  const rings = 14 + Math.floor(rnd() * 5), TAU = Math.PI * 2, ph = rnd();
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const g = c.getContext("2d"), img = g.createImageData(w, h), px = img.data;
+  for (let j = 0; j < h; j++) {
+    const v = j / h;
+    for (let i = 0; i < w; i++) {
+      const u = i / w;
+      // волокна почти прямые, «арки» распила появляются только местами
+      const warp = fbm(u * 3, v, 3, 1) * 1.8 + fbm(u * 8, v * 2, 8, 2) * 0.35;
+      const zone = Math.pow(Math.max(0, Math.sin(TAU * (u + ph))), 4);
+      const arch = (0.5 + 0.5 * Math.sin(TAU * (v + 0.3 * fbm(u * 2, v, 2, 1)))) * zone;
+      const t = u * rings + warp + arch * 2.2;
+      const f = t - Math.floor(t);
+      const late = sm(Math.min(1, Math.max(0, (f - 0.72) / 0.2))) * (1 - sm(Math.min(1, Math.max(0, (f - 0.94) / 0.06))));
+      const fiber = noise(u * 256, v * 3, 256, 3) * 0.55 + noise(u * 128, v * 2, 128, 2) * 0.45;
+      const streak = noise(u * 16, v, 16, 1);
+      const pore = Math.max(0, noise(u * 256, v * 48, 256, 48) - 0.8) * 4;
+      const blot = fbm(u * 2, v, 2, 1);
+      const lum = 1.08 - 0.2 * late - 0.05 * f - 0.18 * (fiber - 0.5) - 0.1 * (streak - 0.5) - 0.14 * pore + 0.07 * (blot - 0.5);
+      const k = (j * w + i) * 4;
+      px[k] = Math.min(255, 255 * R * lum);
+      px[k + 1] = Math.min(255, 255 * G * Math.pow(lum, 1.15));   // тёмные места чуть теплее и насыщеннее
+      px[k + 2] = Math.min(255, 255 * B * Math.pow(lum, 1.35));
+      px[k + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  return c;
+}
 const texCache = new Map();
 function woodTexture(hex) {
   if (texCache.has(hex)) return texCache.get(hex);
-  const c = document.createElement("canvas");
-  c.width = 256; c.height = 1024;
-  const g = c.getContext("2d");
-  g.fillStyle = hex; g.fillRect(0, 0, 256, 1024);
-  let seed = 11;
-  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  for (let i = 0; i < 80; i++) {
-    const x0 = rnd() * 256, a = 0.05 + rnd() * 0.13, dark = rnd() > 0.35, amp = 2 + rnd() * 5, ph = rnd() * 6;
-    g.strokeStyle = dark ? `rgba(45,28,12,${a})` : `rgba(255,240,220,${a * 0.8})`;
-    g.lineWidth = 0.6 + rnd() * 2.6;
-    g.beginPath();
-    for (let y = 0; y <= 1024; y += 24) {
-      const x = x0 + Math.sin(y / 150 + ph) * amp;
-      if (y === 0) g.moveTo(x, y); else g.lineTo(x, y);
-    }
-    g.stroke();
-  }
-  const t = new THREE.CanvasTexture(c);
+  const t = new THREE.CanvasTexture(woodCanvas(hex, 512, 1024));
   t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 4;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = renderer ? renderer.capabilities.getMaxAnisotropy() : 4;
   texCache.set(hex, t);
   return t;
+}
+// маленький образец для кружка выбора цвета
+const swatchCache = new Map();
+function woodSwatch(hex) {
+  if (!swatchCache.has(hex)) swatchCache.set(hex, woodCanvas(hex, 96, 192).toDataURL("image/jpeg", 0.85));
+  return swatchCache.get(hex);
+}
+// Развёртка текстуры по реальным размерам детали: волокна идут вдоль длинной стороны,
+// у каждой детали свой участок узора, чтобы соседние панели не были одинаковыми.
+function woodUV(geo, w, h, d, x, y, z) {
+  const uv = geo.attributes.uv;
+  const faces = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];   // px, nx, py, ny, pz, nz
+  const ou = Math.abs(Math.sin(x * 12.9898 + y * 78.233 + z * 3.17)) % 1, ov = Math.abs(Math.sin(x * 4.1 + y * 9.7 + z * 31.3)) % 1;
+  for (let f = 0; f < 6; f++) {
+    const [a, b] = faces[f], rot = a > b * 1.2;
+    for (let q = 0; q < 4; q++) {
+      const i = f * 4 + q, u = uv.getX(i), v = uv.getY(i);
+      if (rot) uv.setXY(i, ou + (v * b) / TEX_W, ov + (u * a) / TEX_H);
+      else uv.setXY(i, ou + (u * a) / TEX_W, ov + (v * b) / TEX_H);
+    }
+  }
+  uv.needsUpdate = true;
 }
 
 const lineMat = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22 });
 function mat(c, rough) {
   const o = typeof c === "string" ? { color: c } : c;
   const roughness = o.gloss ? 0.18 : rough == null ? 0.62 : rough;
-  if (o.wood) return new THREE.MeshStandardMaterial({ color: 0xffffff, map: woodTexture(o.color), roughness, metalness: 0 });
+  if (o.wood) return new THREE.MeshStandardMaterial({ color: 0xffffff, map: woodTexture(o.color), roughness: rough == null ? 0.55 : rough, metalness: 0 });
   return new THREE.MeshStandardMaterial({ color: new THREE.Color(o.color), roughness, metalness: 0 });
 }
 function box(parent, w, h, d, x, y, z, material) {
   const g = new THREE.BoxGeometry(w * mm, h * mm, d * mm);
+  if (material.map) woodUV(g, w, h, d, x, y, z);
   const m = new THREE.Mesh(g, material);
   m.position.set(x * mm, y * mm, z * mm);
   m.castShadow = true;
@@ -330,6 +438,7 @@ function build() {
   const body = mat(decor(state.body));
   const front = mat(facadeColor(), state.fmat === "paint" ? 0.45 : 0.5);
   const metal = mat("#b9bcc0", 0.3);
+  const rodMat = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.35, metalness: 0.4 });   // штанга чёрная
   const innerW = W - 2 * T;
   const yBottom = PLINTH + T;
   const yTop = anti ? H - state.A - T / 2 : H - T;
@@ -356,7 +465,7 @@ function build() {
     const c = contents(sec, yBottom, yTop);
     for (const y of c.shelves) box(group, sec.w - 2, T, D - 30, sec.cx, y, -15, body);
     for (const y of c.rods) {
-      const rod = new THREE.Mesh(new THREE.CylinderGeometry(8 * mm, 8 * mm, (sec.w - 10) * mm, 16), metal);
+      const rod = new THREE.Mesh(new THREE.CylinderGeometry(8 * mm, 8 * mm, (sec.w - 10) * mm, 16), rodMat);
       rod.rotation.z = Math.PI / 2;
       rod.position.set(sec.cx * mm, y * mm, 0);
       rod.castShadow = true;
@@ -404,6 +513,7 @@ function swatches(host, list, key) {
     b.type = "button";
     b.className = "sw" + (d.wood ? " wood" : "") + (d.gloss ? " gloss" : "");
     b.style.setProperty("--c", d.color);
+    if (d.wood) b.style.backgroundImage = `url(${woodSwatch(d.color)})`;
     b.title = d.name;
     b.setAttribute("aria-label", d.name);
     b.setAttribute("aria-pressed", String(state[key] === d.id));
@@ -421,6 +531,50 @@ function syncDims() {
     $("#" + hintId).textContent = "от " + lo + " до " + hi;
     if (document.activeElement !== el) { el.value = state[key]; el.removeAttribute("aria-invalid"); }
   }
+}
+
+// окошки «полки / ящики / штанги» для каждого отделения; в списке только то, что помещается по высоте
+const SEC_FIELDS = [["s", "Полки"], ["d", "Ящики"], ["r", "Штанги"]];
+function sectionRows() {
+  const host = $("#cfg-secs"), span = mainSpan(state), secs = layout(state);
+  host.innerHTML = "";
+  secs.forEach((sec, k) => {
+    const row = document.createElement("div");
+    row.className = "sec-row";
+    const name = document.createElement("p");
+    name.className = "sec-name";
+    name.innerHTML = `Отделение ${k + 1} <small>${sec.doors === 2 ? "2 двери" : "1 дверь"}, ширина ${Math.round(sec.w)} мм</small>`;
+    row.appendChild(name);
+    for (const [f, label] of SEC_FIELDS) {
+      const cur = state.secs[k];
+      const max = fitCounts({ ...cur, [f]: MAX[f] }, span)[f];
+      const l = document.createElement("label");
+      l.textContent = label;
+      const sel = document.createElement("select");
+      sel.setAttribute("aria-label", `${label}, отделение ${k + 1}`);
+      for (let v = 0; v <= max; v++) {
+        const o = document.createElement("option");
+        o.value = v; o.textContent = v;
+        if (v === cur[f]) o.selected = true;
+        sel.appendChild(o);
+      }
+      sel.addEventListener("change", () => {
+        state.secs[k] = { ...state.secs[k], [f]: +sel.value };
+        state.fill = "custom";
+        refresh();
+      });
+      l.appendChild(sel);
+      row.appendChild(l);
+    }
+    host.appendChild(row);
+  });
+}
+function secText(c, k) {
+  return `отделение ${k + 1}: полок ${c.s}, ящиков ${c.d}, штанг ${c.r}` + (c.d ? " + полка над ящиками" : "");
+}
+function fillText() {
+  const per = state.secs.map((c, k) => secText(c, k)).join("; ");
+  return (state.fill === "custom" ? "своё" : FILLS[state.fill].name.toLowerCase()) + " (" + per + ")";
 }
 
 function pressed(selector, attr, value) {
@@ -444,6 +598,7 @@ function refresh(skipBuild) {
     if (n === state.doors) o.selected = true;
     sel.appendChild(o);
   }
+  sectionRows();
   swatches($("#sw-body"), DECORS, "body");
   swatches($("#sw-facade"), FMATS[state.fmat].list, "facade");
   $("#n-body").textContent = decor(state.body).name;
@@ -463,19 +618,77 @@ function price() {
   const e = estimate(state);
   $("#cfg-low").textContent = fmt(e.low);
   $("#cfg-high").textContent = fmt(e.high);
-  $("#cfg-breakdown").innerHTML = Object.entries(e.parts).map(([k, v]) => `<li><span>${k}</span><b>${fmt(Math.round(v * PRICES.markup / 100) * 100)}</b></li>`).join("");
+  $("#cfg-breakdown").innerHTML = Object.entries(e.parts).map(([k, v]) => `<li><span>${k}</span><b>${fmt(Math.round(v / 100) * 100)}</b></li>`).join("");
   const anti = state.type === "antresol";
   const lines = [
     "Здравствуйте! Хочу рассчитать шкаф (с сайта ordazhihaz.kz, конструктор).",
     `Тип: ${TYPES[state.type].msg}`,
     `Размеры: ширина ${state.W}, высота ${state.H}, глубина ${state.D} мм` + (anti ? `; антресоль ${state.A} мм` : ""),
-    `Двери: ${state.doors}${anti ? " + " + state.doors + " на антресоли" : ""}; наполнение: ${FILLS[state.fill].name.toLowerCase()}`,
+    `Двери: ${state.doors}${anti ? " + " + state.doors + " на антресоли" : ""}; наполнение: ${fillText()}`,
     `Корпус: ЛДСП, ${decor(state.body).name}`,
     `Фасады: ${facadeText()}`,
     `Ориентировочно на сайте: от ${fmt(e.low)} до ${fmt(e.high)}`,
     "Фото или план пришлю в этот чат.",
   ];
   $("#cfg-send").href = WA + "?text=" + encodeURIComponent(lines.join("\n"));
+}
+
+/* ---------- КП для скачивания ---------- */
+// снимок 3D-модели с одного и того же ракурса; openT: 0 — двери закрыты, 1 — открыты
+function snapshot(openT) {
+  if (!ready) return null;
+  const pos = camera.position.clone();
+  const want = Math.max(state.W, state.H) * mm * 1.8;
+  camera.position.set(want * 0.42, state.H * mm * 0.6 + want * 0.12, want * 1.0);
+  camera.lookAt(controls.target);
+  for (const d of doorsRef) d.update(openT);
+  renderer.render(scene, camera);
+  const url = renderer.domElement.toDataURL("image/png");
+  camera.position.copy(pos);
+  camera.lookAt(controls.target);
+  for (const d of doorsRef) d.update(anim.open);
+  return url;
+}
+async function downloadKP(btn) {
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Готовлю КП…";
+  try {
+    const e = estimate(state), anti = state.type === "antresol";
+    const nd = state.secs.reduce((a, c) => a + c.d, 0), nr = state.secs.reduce((a, c) => a + c.r, 0);
+    await makeKP({
+      subtitle: "по изготовлению шкафа",
+      section: "Шкаф",
+      name: `${TYPES[state.type].name} ${state.W}×${state.H}×${state.D} мм` + (anti ? `, антресоль ${state.A} мм` : ""),
+      lines: [
+        `- Двери: ${state.doors} распашные на петлях` + (anti ? ` + ${state.doors} на антресоли` : ""),
+        `- Корпус: ЛДСП 16 мм, ${decor(state.body).name}`,
+        `- Фасады: ${facadeText()}`,
+        ...state.secs.map((c, k) => "- " + secText(c, k).replace(/^о/, "О")),
+        `- Задняя стенка ДВП, цоколь ${PLINTH} мм`,
+        `- Фурнитура DTC: петли с доводчиком, полкодержатели` + (nd ? ", скрытые направляющие с доводчиком" : "") + (nr ? ", штанги" : ""),
+      ],
+      images: [snapshot(0), snapshot(1)],
+      low: e.low,
+      high: e.high,
+      conditions: [
+        "Стоимость ориентировочная: рассчитана в конструкторе на сайте ordazhihaz.kz. Точную цену менеджер назовёт после замера и согласования проекта.",
+        "Замер — 10 000 ₸, засчитывается в стоимость заказа.",
+        "Материалы, цвета и фурнитура подбираются и согласовываются по образцам в нашем офисе. Цвета на изображениях приблизительные.",
+        "Условия оплаты: предоплата 70%, остаток 30% перед монтажом.",
+        "Доставка и монтаж входят в стоимость.",
+        "В стоимость не входят: ручки (их установка включена).",
+        "Чтобы получить точное КП, отправьте этот расчёт нам в WhatsApp.",
+      ],
+      file: `КП_ORDA_ZHIHAZ_шкаф_${state.W}x${state.H}`,
+    });
+  } catch (err) {
+    console.error(err);
+    alert("Не удалось сформировать КП. Напишите нам в WhatsApp — пришлём КП.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
 }
 
 function bindDim(id, key) {
@@ -513,6 +726,7 @@ function bind() {
   for (const [id, , key] of DIM_FIELDS) bindDim(id, key);
   $("#f-doors").addEventListener("change", (e) => { state.doors = +e.target.value; refresh(); });
   $("#cfg-open").addEventListener("click", () => { state.open = !state.open; refresh(true); });
+  $("#cfg-kp").addEventListener("click", (e) => downloadKP(e.currentTarget));
 }
 
 if (!PRICES.confirmed) {

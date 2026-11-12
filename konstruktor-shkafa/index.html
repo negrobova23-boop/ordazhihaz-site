@@ -65,6 +65,9 @@
         <button type="button" data-fill="B" aria-pressed="false"><b>С ящиками</b><span>ящики внизу, штанга и полки</span></button>
         <button type="button" data-fill="C" aria-pressed="false"><b>Только полки</b><span>полки во всех отделениях</span></button>
       </div>
+      <p class="sub-l">Сколько в каждом отделении</p>
+      <div class="secs" id="cfg-secs"></div>
+      <p class="muted sec-hint">В списке только то, что помещается по высоте. Ящики ставятся внизу, над ними всегда полка, штанги сверху.</p>
     </fieldset>
     <fieldset>
       <legend>Корпус: <span id="n-body" class="muted"></span></legend>
@@ -96,7 +99,7 @@
   <p class="cfg-label">Ориентировочная стоимость</p>
   <p class="cfg-price"><span id="cfg-low"></span> – <span id="cfg-high"></span></p>
   <p class="muted">Точная цена зависит от замера, фурнитуры и проекта. Замер — 10 000 ₸, он засчитывается в заказ.</p>
-  <p><a id="cfg-send" class="btn" href="https://wa.me/77769994032" rel="nofollow">Отправить в WhatsApp</a> <a class="btn ghost" href="/mebel-na-zakaz/#raschet">Другой расчёт</a></p>
+  <p><a id="cfg-send" class="btn" href="https://wa.me/77769994032" rel="nofollow">Отправить в WhatsApp</a> <button id="cfg-kp" class="btn ghost" type="button">Скачать КП</button> <a class="btn ghost" href="/mebel-na-zakaz/#raschet">Другой расчёт</a></p>
   <details id="cfg-breakdown-wrap" hidden><summary>Из чего складывается (пробная версия)</summary><ul class="cfg-breakdown" id="cfg-breakdown"></ul></details>
 </section>
 </main>

@@ -239,6 +239,10 @@ mark.todo { background: #ffe27a; color: #3a2e00; padding: 0 4px; border-radius: 
 .cfg-view { position: sticky; top: 84px; }
 .cfg-canvas { width: 100%; aspect-ratio: 4 / 3.2; min-height: 320px; background: radial-gradient(ellipse at 50% 38%, #ffffff, #e4ddcd); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; touch-action: pan-y; }
 .cfg-canvas canvas { display: block; cursor: grab; }
+/* водяные знаки поверх 3D-модели: не мешают вращать шкаф */
+.cfg-canvas { position: relative; }
+.cfg-canvas::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='170'%3E%3Ctext x='150' y='95' text-anchor='middle' transform='rotate(-28 150 85)' font-family='Georgia,serif' font-size='22' font-weight='700' letter-spacing='3' fill='%230f3b2c' fill-opacity='.11'%3EORDA ZHIHAZ%3C/text%3E%3C/svg%3E") repeat; }
+.cfg-canvas::before { content: "ordazhihaz.kz"; position: absolute; right: 12px; bottom: 8px; z-index: 1; pointer-events: none; font-size: 13px; letter-spacing: .06em; color: rgba(15, 59, 44, .45); }
 .cfg-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 8px; font-size: 14px; }
 .cfg-panel { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; }
 .cfg-panel fieldset { border: 0; padding: 0; margin: 0 0 14px; }
@@ -261,7 +265,8 @@ mark.todo { background: #ffe27a; color: #3a2e00; padding: 0 4px; border-radius: 
 .cfg-breakdown { list-style: none; padding: 0; margin: 8px 0 0; font-size: 14px; }
 .cfg-breakdown li { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--line); }
 .cfg-promo { margin: 12px 0 0; }
-@media (max-width: 860px) { .cfg { grid-template-columns: 1fr; } .cfg-view { position: static; } }
+@media (max-width: 860px) { .cfg { grid-template-columns: minmax(0, 1fr); } .cfg-view { position: static; } }
+.cfg-view, .cfg-panel, .cfg-panel fieldset { min-width: 0; }
 
 /* ---- анимация появления при прокрутке ---- */
 .js .reveal { opacity: 0; transform: translateY(24px); transition: opacity .8s ease, transform .8s cubic-bezier(.2, .7, .2, 1); transition-delay: var(--d, 0s); }
@@ -429,6 +434,15 @@ mark.todo { background: #ffe27a; color: #3a2e00; padding: 0 4px; border-radius: 
 .sw.gloss { background: linear-gradient(135deg, rgba(255, 255, 255, .9), rgba(255, 255, 255, 0) 55%), var(--c); }
 .cfg-note-box { margin: 4px 0 0; font-size: 14px; line-height: 1.45; color: var(--muted); border-left: 3px solid var(--gold); padding: 6px 10px; }
 @media (max-width: 560px) { .fills { grid-template-columns: 1fr; } }
+.secs { display: grid; gap: 8px; }
+.sec-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 8px; border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px 10px; }
+.sec-name { grid-column: 1 / -1; margin: 0; font-size: 14px; font-weight: 600; color: var(--emerald); }
+.sec-name small { font-weight: 400; color: var(--muted); }
+.sec-row label { display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--muted); }
+.sec-row select { width: 100%; font: inherit; font-size: 16px; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 7px 8px; }
+.sec-row select:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+.sec-hint { font-size: 13px; margin: 6px 0 0; }
+.sw.wood { background-size: cover; background-position: center; }
 
 /* ---- логотип на фоне: «наезжает» издалека, приближается при прокрутке, наклоняется за курсором ---- */
 .bg-logo { position: fixed; left: 50%; top: 56%; width: min(78vw, 760px); aspect-ratio: 1; z-index: -1; pointer-events: none;
