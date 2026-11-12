@@ -5,6 +5,25 @@
   d.documentElement.classList.add("js");
   var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  // плавное раскрытие вопросов (страница «Вопросы»)
+  d.querySelectorAll(".faq details").forEach(function (el) {
+    var sum = el.querySelector("summary");
+    var anim = null;
+    if (!sum || reduce || !el.animate) return;
+    sum.addEventListener("click", function (e) {
+      e.preventDefault();
+      var from = el.offsetHeight;
+      if (anim) anim.cancel();
+      var opening = !el.open;
+      if (opening) el.open = true;
+      var to = opening ? el.scrollHeight : sum.offsetHeight + parseFloat(getComputedStyle(el).paddingTop) + parseFloat(getComputedStyle(el).paddingBottom) + 2;
+      if (opening) { el.style.height = "auto"; to = el.offsetHeight; }
+      anim = el.animate({ height: [from + "px", to + "px"] }, { duration: 220, easing: "cubic-bezier(.23, 1, .32, 1)" });
+      anim.onfinish = function () { if (!opening) el.open = false; anim = null; el.style.height = ""; };
+      anim.oncancel = function () { anim = null; el.style.height = ""; };
+    });
+  });
+
   // тень под шапкой при прокрутке
   var top = d.querySelector(".top");
   function onScroll() { if (top) top.classList.toggle("scrolled", window.scrollY > 8); }

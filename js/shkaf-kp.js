@@ -62,8 +62,10 @@ function markPage(g) {
   g.restore();
 }
 
-// d: { subtitle, section, name, lines[], images[dataURL], low, high, conditions[], file }
+// d: { subtitle, section, images[dataURL], conditions[], file,
+//      items: [{ name, lines[], low, high, qty?, unit? }] — или одна позиция полями name, lines, low, high }
 export async function makeKP(d) {
+  const items = d.items || [{ name: d.name, lines: d.lines, low: d.low, high: d.high }];
   const c = document.createElement("canvas");
   c.width = PW; c.height = PH;
   const g = c.getContext("2d");
@@ -112,40 +114,44 @@ export async function makeKP(d) {
   g.fillText(d.section.toUpperCase(), M + 20, y + 27);
   y += 40;
 
-  // строка позиции: название, характеристики, изображения
+  // строки позиций: название, характеристики, изображения (у первой позиции)
   const tx = xs[1] + 8, tw = cols[1][1] - 16;
-  g.font = `bold 21px ${SANS}`;
-  const nameL = wrap(g, d.name, tw);
-  g.font = `16px ${SANS}`;
-  const lineL = d.lines.flatMap((l) => wrap(g, l, tw));
-  const textH = 14 + nameL.length * 27 + lineL.length * 22 + 14;
   const picW = cols[2][1] - 16, picH = Math.round(picW * 0.8);
-  const picsH = pics.length * (picH + 10) + 10;
-  const rowH = Math.max(textH, picsH, 200);
-  cols.forEach(([, w], i) => cell(xs[i], y, w, rowH));
-  g.fillStyle = GREEN;
-  g.font = `bold 21px ${SANS}`;
-  let ty = y + 34;
-  for (const l of nameL) { g.fillText(l, tx, ty); ty += 27; }
-  g.font = `16px ${SANS}`;
-  for (const l of lineL) { g.fillText(l, tx, ty); ty += 22; }
-  pics.forEach((p, i) => {
-    const px = xs[2] + 8, py = y + 10 + i * (picH + 10) + (rowH - picsH) / 2;
-    fitImage(g, p, px, py, picW, picH);
-    markImage(g, logo, px, py, picW, picH);
+  items.forEach((it, n) => {
+    g.textAlign = "left";
+    g.font = `bold 21px ${SANS}`;
+    const nameL = wrap(g, it.name, tw);
+    g.font = `16px ${SANS}`;
+    const lineL = it.lines.flatMap((l) => wrap(g, l, tw));
+    const textH = 14 + nameL.length * 27 + lineL.length * 22 + 14;
+    const own = n === 0 ? pics : [];
+    const picsH = own.length ? own.length * (picH + 10) + 10 : 0;
+    const rowH = Math.max(textH, picsH, own.length ? 200 : 90);
+    cols.forEach(([, w], i) => cell(xs[i], y, w, rowH));
+    g.fillStyle = GREEN;
+    g.font = `bold 21px ${SANS}`;
+    let ty = y + 34;
+    for (const l of nameL) { g.fillText(l, tx, ty); ty += 27; }
+    g.font = `16px ${SANS}`;
+    for (const l of lineL) { g.fillText(l, tx, ty); ty += 22; }
+    own.forEach((p, i) => {
+      const px = xs[2] + 8, py = y + 10 + i * (picH + 10) + (rowH - picsH) / 2;
+      fitImage(g, p, px, py, picW, picH);
+      markImage(g, logo, px, py, picW, picH);
+    });
+    g.fillStyle = INK;
+    g.textAlign = "center";
+    g.font = `19px ${SANS}`;
+    const mid = y + rowH / 2;
+    g.fillText(String(n + 1), xs[0] + cols[0][1] / 2, mid + 7);
+    g.fillText(it.qty || "1", xs[3] + cols[3][1] / 2, mid + 7);
+    g.fillText(it.unit || "шт", xs[4] + cols[4][1] / 2, mid + 7);
+    for (const i of [5, 6]) {
+      g.fillText("от " + fmt(it.low), xs[i] + cols[i][1] / 2, mid - 6);
+      g.fillText("до " + fmt(it.high), xs[i] + cols[i][1] / 2, mid + 20);
+    }
+    y += rowH;
   });
-  g.fillStyle = INK;
-  g.textAlign = "center";
-  g.font = `19px ${SANS}`;
-  const mid = y + rowH / 2;
-  g.fillText("1", xs[0] + cols[0][1] / 2, mid + 7);
-  g.fillText("1", xs[3] + cols[3][1] / 2, mid + 7);
-  g.fillText("шт", xs[4] + cols[4][1] / 2, mid + 7);
-  for (const i of [5, 6]) {
-    g.fillText("от " + fmt(d.low), xs[i] + cols[i][1] / 2, mid - 6);
-    g.fillText("до " + fmt(d.high), xs[i] + cols[i][1] / 2, mid + 20);
-  }
-  y += rowH;
 
   // итог
   cell(M, y, xs[6] - M, 64, GREEN);
@@ -156,8 +162,9 @@ export async function makeKP(d) {
   g.fillText("Ориентировочная стоимость (без НДС):", xs[6] - 20, y + 39);
   g.textAlign = "center";
   g.font = `bold 18px ${SANS}`;
-  g.fillText("от " + fmt(d.low) + " ₸", xs[6] + cols[6][1] / 2, y + 27);
-  g.fillText("до " + fmt(d.high) + " ₸", xs[6] + cols[6][1] / 2, y + 51);
+  const low = items.reduce((a, it) => a + it.low, 0), high = items.reduce((a, it) => a + it.high, 0);
+  g.fillText("от " + fmt(low) + " ₸", xs[6] + cols[6][1] / 2, y + 27);
+  g.fillText("до " + fmt(high) + " ₸", xs[6] + cols[6][1] / 2, y + 51);
   y += 64;
 
   // условия

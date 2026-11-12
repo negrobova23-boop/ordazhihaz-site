@@ -10,7 +10,18 @@
       if (!btn) return;
       bar.querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-pressed", b === btn ? "true" : "false"); });
       var cat = btn.dataset.cat;
-      grid.querySelectorAll("a").forEach(function (a) { a.hidden = cat !== "all" && a.dataset.cat !== cat; });
+      var n = 0;
+      grid.querySelectorAll("a").forEach(function (a) {
+        var wasHidden = a.hidden;
+        a.hidden = cat !== "all" && a.dataset.cat !== cat;
+        if (wasHidden && !a.hidden) {
+          a.style.setProperty("--d", Math.min(n++, 8) * 0.025 + "s");
+          a.classList.remove("pop");
+          void a.offsetWidth;
+          a.classList.add("pop");
+          a.addEventListener("animationend", function () { a.classList.remove("pop"); }, { once: true });
+        }
+      });
     });
   });
 
@@ -39,7 +50,10 @@
     img.alt = a.querySelector("img").alt;
     count.textContent = (cur + 1) + " / " + list.length;
   }
-  function close() { box.classList.remove("on"); img.removeAttribute("src"); }
+  function close() {
+    box.classList.remove("on");
+    setTimeout(function () { if (!box.classList.contains("on")) img.removeAttribute("src"); }, 200);
+  }
 
   grids.forEach(function (grid) {
     grid.addEventListener("click", function (e) {
