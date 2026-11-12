@@ -182,6 +182,9 @@ h3 { font-size: 20px; margin: 10px 0 6px; color: var(--ink); }
 .calc-bar i { display: block; height: 100%; width: 0; background: var(--gold); transition: width .2s; }
 .calc:not(.js) .calc-top, .calc:not(.js) [data-next], .calc:not(.js) [data-back] { display: none; }
 .calc-hint { color: #b4232a; margin: 0; }
+.calc [hidden] { display: none !important; }
+.calc-sub { margin: 12px 0 6px; font-size: 15px; color: var(--muted); }
+.calc-note { font-size: 14px; margin: 10px 0 4px; }
 .calc-wrap { scroll-margin-top: 84px; }
 
 mark.todo { background: #ffe27a; color: #3a2e00; padding: 0 4px; border-radius: 4px; font-size: .92em; }
