@@ -417,6 +417,14 @@ mark.todo { background: #ffe27a; color: #3a2e00; padding: 0 4px; border-radius: 
 .price-t td:not(:first-child), .price-t th:not(:first-child) { white-space: nowrap; }
 .ss-notes { margin-top: 12px; }
 .ss-price { margin-top: 28px; }
+.price-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; max-width: 960px; align-items: start; }
+.price-grid .table-wrap { max-width: none; }
+.ss-price h3 { font-family: var(--serif); color: var(--emerald); font-size: 19px; margin: 18px 0 8px; }
+.price-t td:not(:first-child) { text-align: right; }
+@media (max-width: 760px) { .price-grid { grid-template-columns: minmax(0, 1fr); } }
+.ss-poster { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; max-width: 960px; }
+.ss-poster img { width: 100%; height: auto; border-radius: 12px; display: block; }
+@media (max-width: 760px) { .ss-poster { grid-template-columns: minmax(0, 1fr); } .ss-poster img { max-width: 420px; } }
 
 /* ---- выбор номера WhatsApp (выпадающее окно у любой кнопки WhatsApp) ---- */
 .wa-pop { position: absolute; z-index: 70; min-width: 250px; max-width: calc(100vw - 16px); background: var(--card-solid); border: 1px solid var(--line); border-radius: 14px; padding: 10px; box-shadow: 0 14px 34px rgba(0, 0, 0, .28); }

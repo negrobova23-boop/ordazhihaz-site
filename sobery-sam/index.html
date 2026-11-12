@@ -38,7 +38,7 @@
 <main class="wrap">
 
 <nav class="crumbs" aria-label="Навигация"><a href="/">Главная</a> / Собери сам</nav>
-<h1>Собери сам</h1><p class="lead">Мы делаем проект и раскрой, режем и кромим детали, комплектуем фурнитуру — вы собираете мебель сами.</p>
+<h1>Собери сам</h1><p class="lead">Мебельные детали точно в размер: проект, распил ЛДСП и МДФ, кромление с прифуговкой, присадка, обработка на ЧПУ, малярные работы и вакуум. Вы забираете готовые детали и собираете мебель сами.</p>
 
 <section class="ss-quick">
  <p><b>Есть фото замеров или готовый проект?</b> Ничего не выбирайте — напишите сразу, пришлите фото, и мы посчитаем.</p>
@@ -67,13 +67,6 @@
    <option value="tech">Только чертежи конструктора (есть свой дизайн)</option>
    <option value="none">Только распил и кромка по моим чертежам</option>
   </select></label>
- <label class="field">Замер
-  <select name="measure">
-   <option value="none">Не нужен, размеры есть</option>
-   <option value="pre">Предварительный замер дизайнером</option>
-   <option value="control">Контрольный замер конструктором</option>
-   <option value="both">Оба замера</option>
-  </select></label>
  <label class="field">Материал корпуса
   <select name="body">
    <option>ЛДСП белая</option>
@@ -87,39 +80,105 @@
    <option>МДФ в краске</option>
    <option>Пока не знаю</option>
   </select></label>
- <label class="field">Фурнитура
+ <label class="field">Какая будет фурнитура <small class="muted">— покупаете сами, нам нужно знать для чертежей</small>
   <select name="fit">
    <option>DTC</option>
    <option>Blum</option>
    <option>Hettich</option>
    <option>GTV</option>
-   <option>Не нужна, куплю сам</option>
+   <option>Пока не знаю</option>
   </select></label>
  <div class="ss-sum" aria-live="polite">
   <p class="cfg-label">Услуги дизайнера и конструктора</p>
   <p class="cfg-price" id="ss-total"></p>
   <ul class="cfg-breakdown" id="ss-lines"></ul>
-  <p class="muted">Материалы, распил, присадку и кромку посчитаем по проекту. Работа начинается после 100% оплаты.</p>
+  <p class="muted">Материалы, распил, присадку и кромку посчитаем по проекту. Фурнитуру вы покупаете сами. Работа начинается после 100% оплаты.</p>
  </div>
  <p><button type="submit" class="btn">Отправить заявку в WhatsApp</button></p>
 </form>
 </section>
 
 <section class="ss-price">
-<h2>Прайс на услуги</h2>
-<div class="table-wrap"><table class="about price-t">
- <thead><tr><th>Услуга</th><th>Кухня</th><th>Шкаф</th><th>Тумба, комод</th></tr></thead>
- <tbody>
-  <tr><td>Дизайнер корпусной мебели (без ведения проекта)</td><td>7 000 ₸/м.п.</td><td>7 000 ₸/м.п.</td><td>5 000 ₸/м.п.</td></tr>
-  <tr><td>Конструктор (технолог): чертежи и раскрой</td><td>10 000 ₸/м.п.</td><td>8 000 ₸/м.п.</td><td>5 000 ₸/м.п.</td></tr>
- </tbody>
-</table></div>
+<h2>Прайс услуг цеха</h2>
+<div class="price-grid">
+ <div>
+  <h3>Услуги распила</h3>
+  <div class="table-wrap"><table class="about price-t">
+   <tbody>
+    <tr><th>Распил ЛДСП (центр-пила)</th><td>1 500 ₸ за лист</td></tr>
+    <tr><th>Распил МДФ</th><td>2 000 ₸ за лист</td></tr>
+    <tr><th>Распил ХДФ</th><td>1 000 ₸ за лист</td></tr>
+    <tr><th>Распил столешницы</th><td>2 000 ₸</td></tr>
+    <tr><th>Кромка с прифуговкой</th><td>180 ₸ за метр</td></tr>
+    <tr><th>Присадка</th><td>5 000 ₸ за лист</td></tr>
+    <tr><th>Склейка 32 мм</th><td>2 000 ₸</td></tr>
+    <tr><th>Закатка 32 мм</th><td>300 ₸</td></tr>
+   </tbody>
+  </table></div>
+ </div>
+ <div>
+  <h3>Услуги ЧПУ</h3>
+  <div class="table-wrap"><table class="about price-t">
+   <tbody>
+    <tr><th>Фанера 15 мм</th><td>400 ₸ за м.п.</td></tr>
+    <tr><th>Фанера 18 мм</th><td>600 ₸ за м.п.</td></tr>
+    <tr><th>Квадра 16 мм</th><td>3 800 ₸ за м²</td></tr>
+    <tr><th>Рифлёнка 16 мм</th><td>4 500 ₸ за м²</td></tr>
+    <tr><th>Выборка 16 мм</th><td>5 000 ₸ за м²</td></tr>
+    <tr><th>Штлайх 2D 16 мм</th><td>от 300 ₸ за м.п.</td></tr>
+    <tr><th>Жалюзи 3D 18 мм</th><td>18 000 ₸ за м²</td></tr>
+    <tr><th>HPL 4 мм</th><td>от 8 000 ₸ за м.п.</td></tr>
+    <tr><th>Акриловый камень 12 мм</th><td>10 000 ₸ за м.п.</td></tr>
+    <tr><th>3D-фрезеровка 16 мм</th><td>от 10 000 ₸</td></tr>
+    <tr><th>Резьба и орнамент 2D 6 мм</th><td>от 12 000 ₸ за м²</td></tr>
+   </tbody>
+  </table></div>
+ </div>
+</div>
+<h3>МДФ-фасады, за м²</h3>
+<div class="price-grid">
+ <div class="table-wrap"><table class="about price-t">
+  <thead><tr><th>В плёнке</th><th>16 мм</th><th>18 мм</th></tr></thead>
+  <tbody>
+   <tr><td>Модерн</td><td>16 000 ₸</td><td>18 000 ₸</td></tr>
+   <tr><td>Выборка</td><td>18 500 ₸</td><td>20 000 ₸</td></tr>
+   <tr><td>Рельеф</td><td>18 000 ₸</td><td>20 000 ₸</td></tr>
+   <tr><td>Штапики</td><td>22 000 ₸</td><td>24 000 ₸</td></tr>
+  </tbody>
+ </table></div>
+ <div class="table-wrap"><table class="about price-t">
+  <thead><tr><th>В краске</th><th>16 мм</th><th>18 мм</th></tr></thead>
+  <tbody>
+   <tr><td>Модерн</td><td>26 000 ₸</td><td>28 000 ₸</td></tr>
+   <tr><td>Выборка</td><td>30 000 ₸</td><td>35 000 ₸</td></tr>
+   <tr><td>Рельеф</td><td>30 000 ₸</td><td>35 000 ₸</td></tr>
+   <tr><td>Штапики</td><td>32 000 ₸</td><td>36 000 ₸</td></tr>
+  </tbody>
+ </table></div>
+</div>
 <ul class="plain ss-notes">
- <li>Предварительный замер дизайнером — <b>10 000 ₸</b>.</li>
- <li>Контрольный замер конструктором — <b>5 000 ₸</b> за комнату (в черте города).</li>
- <li>Распил, присадка, кромка и материалы — по прайсу <a href="/uslugi/">услуг цеха</a>.</li>
- <li>Работа начинается после 100% оплаты.</li>
+ <li><b>Шпон с материалом</b> — 40 000–55 000 ₸.</li>
+ <li><b>Гнутые панели</b> — любой радиус: 100, 150, 200, 250, 300 мм.</li>
+ <li>Стоимость нестандартных работ рассчитывается индивидуально.</li>
 </ul>
+<ul class="plain ss-notes">
+ <li>Доставка материала со склада в наш цех — <b>бесплатно</b>.</li>
+ <li>Готовые детали вы забираете сами, погрузку мы не делаем.</li>
+ <li>Фурнитуру вы покупаете сами. Нам важно знать, какая она будет, — под неё делаются чертежи и присадка.</li>
+</ul>
+
+<h2>Прайс дизайнера и конструктора</h2>
+<div class="ss-poster">
+ <div class="table-wrap"><table class="about price-t">
+  <thead><tr><th>Услуга</th><th>Кухня</th><th>Шкаф</th><th>Тумба</th></tr></thead>
+  <tbody>
+   <tr><td>Дизайнер корпусной мебели (без ведения проекта)</td><td>7 000 ₸/м.п.</td><td>7 000 ₸/м.п.</td><td>5 000 ₸/м.п.</td></tr>
+   <tr><td>Конструктор (технолог): чертежи и раскрой</td><td>10 000 ₸/м.п.</td><td>8 000 ₸/м.п.</td><td>5 000 ₸/м.п.</td></tr>
+  </tbody>
+ </table></div>
+ <a href="/img/prays-dizayner-konstruktor.jpg" target="_blank" rel="noopener"><img src="/img/prays-dizayner-konstruktor.jpg" width="1024" height="1068" loading="lazy" alt="Прайс ORDA ZHIHAZ на услуги дизайнера корпусной мебели и конструктора"></a>
+</div>
+<p class="muted">Специалисты приступают к работе после 100% оплаты.</p>
 </section>
 </main>
 <section class="cta"><div class="wrap cta-in"><div><b>Получить расчёт стоимости</b><span>Напишите нам в WhatsApp — рассчитаем вашу мебель.</span></div><div class="cta-btns"><a class="btn" href="https://wa.me/77769994032" rel="nofollow">WhatsApp: отдел продаж</a><a class="btn ghost" href="https://wa.me/77761121288" rel="nofollow">WhatsApp: руководитель</a></div></div></section>
