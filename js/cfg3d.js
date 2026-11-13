@@ -99,7 +99,7 @@ export function mat(c, rough) {
 }
 export function box(parent, w, h, d, x, y, z, material) {
   const g = new THREE.BoxGeometry(w * mm, h * mm, d * mm);
-  if (material.map) woodUV(g, w, h, d, x, y, z);
+  if (material.map && !material.userData.plainUV) woodUV(g, w, h, d, x, y, z);   // мрамор и другие картинки — без развёртки дерева
   const m = new THREE.Mesh(g, material);
   m.position.set(x * mm, y * mm, z * mm);
   m.castShadow = true;
