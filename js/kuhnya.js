@@ -38,11 +38,24 @@ const MILLS = { modern: "Модерн", shtapik: "Штапик", vyborka: "Вы�
 const PENS = { glass: "пенал со стеклом", oven: "пенал под духовку и микроволновку", fridge: "пенал под встроенный холодильник",
   niche: "ниша под отдельностоящий холодильник со шкафом сверху" };
 
+const VENT_H = 80;      // планка с вентиляционной решёткой над дверью пенала холодильника
 const FRIDGE_IN = 1770;  // встроенный холодильник в пенале: высота зоны над цоколем, выше — полка и дверь
 // dw — ширина посудомойки (0 — нет), glassW — ширина пенала со стеклом, glass2 — у пенала стеклянная и боковина
 const state = { form: "line", A: 3000, B: 2000, H: 2700, upper: "two", sink: "left", dw: 600, light: false,
-  pens: { fridge: true, niche: false, oven: false, glass: false }, glassW: 600, glass2: false, gShelf: "ldsp",
+  pens: { fridge: true, niche: false, oven: false, glass: false }, glassW: 600, glass2: false, gShelf: "ldsp", frame: "silver",
+  topColor: "carrara",
   body: "white", fmat: "film", mill: "modern", facade: "f-white", top: "kedr", fit: "dtc", open: false };
+// декоры столешницы Кедр (фото декоров — /img/stoleshnicy/, точный код декора уточняет менеджер); цвет рамки стеклянного пенала
+const TOP_COLORS = [
+  ["carrara", "Мрамор Каррара", "#f4f4ee"], ["calacatta", "Мрамор Калакатта", "#e1dfe1"], ["arabescato", "Мрамор Арабескато", "#cdced0"],
+  ["onyx", "Оникс", "#eae4e0"], ["sahara", "Сахара нуар", "#0e0e0f"], ["ice", "Голубой мрамор", "#829195"],
+  ["granite-beige", "Гранит бежевый", "#cfc9b7"], ["granite-grey", "Гранит серый", "#7c7b77"],
+  ["halifax-white", "Дуб Галифакс белый", "#b9a99a"], ["halifax", "Дуб Галифакс натуральный", "#a3855d"],
+  ["halifax-tobacco", "Дуб Галифакс табак", "#876a54"], ["apple", "Яблоня светлая", "#cea689"], ["old-wood", "Старое дерево", "#9a7d66"],
+].map(([id, name, color]) => ({ id, name, color, tex: `/img/stoleshnicy/${id}.jpg` }));
+const FRAMES = { silver: ["серебро", "#c4c7ca"], black: ["чёрный", "#2a2b2e"], brass: ["латунь", "#b8975a"], bronze: ["бронза", "#86664a"] };
+const APRON_H = UP_Y - PLINTH - BASE_H - 38;   // высота фартука: от столешницы до верхних шкафов
+const topColor = () => TOP_COLORS.find((c) => c.id === state.topColor) || TOP_COLORS[0];
 const penW = (s, kind) => (kind === "glass" ? s.glassW : PEN_W);
 const doorCount = (w) => (w >= 650 ? 2 : 1);   // до 600 мм — одна дверь, от 650 — две
 const findIn = (list, id) => list.find((d) => d.id === id) || list[0];
@@ -157,7 +170,7 @@ function plan(s) {
 const hingeLeftFor = (m, len) => m.x + m.w / 2 < len / 2;
 
 /* ---------- подсчёт деталей и цены ---------- */
-function newAcc() { return { ldsp: {}, back: 0, edge: 0, fac: 0, glass: 0, glassShelf: 0, hinge: 0, hingeFree: 0, drawer: 0, push: 0, handle: 0, hanger: 0, leg: 0, dryer: 0, light: 0 }; }
+function newAcc() { return { ldsp: {}, back: 0, edge: 0, fac: 0, glass: 0, glassShelf: 0, hinge: 0, hingeFree: 0, drawer: 0, push: 0, handle: 0, hanger: 0, leg: 0, dryer: 0, light: 0, vent: 0 }; }
 const hingesFor = (h) => (h > 2000 ? 5 : h > 1600 ? 4 : h > 900 ? 3 : 2);
 function count(s, p) {
   const a = newAcc(), m2 = (x, y) => (x * y) / 1e6;
@@ -172,13 +185,13 @@ function count(s, p) {
   const { h1, h2 } = p.t;
 
   for (const r of p.runs) {
-    L(m2(r.len, PLINTH)); a.edge += r.len;                                    // цоколь
+    front(r.len, PLINTH);                                                     // цоколь — МДФ, как фасады
     for (const m of r.base) {
       if (m.kind === "filler") { front(m.w, BASE_H); continue; }
       if (m.kind === "dw") { front(m.w, BASE_H); a.handle++; continue; }      // посудомойка: только фасад
       a.leg += 4;
       carcass(m.w, BASE_H, BASE_D);
-      if (m.kind === "corner") { shelves(1, m.w, BASE_D); L(m2(m.w - 400, BASE_H)); front(400, BASE_H); a.hinge += 2; a.handle++; continue; }
+      if (m.kind === "corner") { shelves(1, m.w, BASE_D); front(m.w - 400, BASE_H); front(400, BASE_H);   /* глухая часть угла — МДФ, как фасады */ a.hinge += 2; a.handle++; continue; }
       if (m.kind === "drawers" || m.kind === "hob") {
         for (const h of DRAWERS) { drawerBox(m.w, BASE_D, h - 60); front(m.w, h); a.handle++; }
       } else if (m.kind === "hobOven") {                                       // духовка под варочной панелью + ящик
@@ -213,6 +226,7 @@ function count(s, p) {
       continue;
     }
     a.leg += 4;
+    front(t.w, PLINTH);                                                        // цоколь пенала — МДФ, как фасады
     if (t.kind === "glass") {                                                  // стеклянная дверь во всю высоту в алюминиевой рамке
       const glass2 = s.glass2 && t === p.talls[p.talls.length - 1];
       carcass(t.w, top - PLINTH, BASE_D, glass2 ? 1 : 2);
@@ -227,8 +241,9 @@ function count(s, p) {
     if (t.kind === "fridge") {                                                 // фасады на дверях холодильника: 720 и до верха холодильника
       front(t.w, BASE_H); front(t.w, FRIDGE_IN - BASE_H); a.handle += 2;
       shelves(1, t.w, BASE_D);                                                 // полка над холодильником
-      const dh = top - PLINTH - FRIDGE_IN;                                     // одна дверь над холодильником до самого верха, антресоль не отделяется
+      const dh = top - PLINTH - FRIDGE_IN - VENT_H;                            // одна дверь над холодильником, антресоль не отделяется
       if (dh > 150) { front(t.w, dh); a.hinge += hingesFor(dh); a.handle++; }
+      front(t.w, VENT_H); a.vent += 2;                                         // планка с решёткой сверху и решётка в цоколе — вентиляция холодильника
       continue;
     } else {                                                                   // духовка и СВЧ: ящик 360, полка над СВЧ, дверь до яруса
       drawerBox(t.w, BASE_D, OVEN_DRAWER - 60); front(t.w, OVEN_DRAWER); a.handle++;
@@ -252,7 +267,7 @@ export function estimate(s) {
   const edge = (a.edge / 1000) * 1.05 * P.edgePerM;
   const facade = s.fmat === "ldsp" ? 0 : a.fac * P.facade[s.fmat][s.mill === "modern" ? "plain" : "frame"];
   const hardware = a.hinge * F.hinge + a.hingeFree * F.hingeFree + a.drawer * F.drawer + a.push * F.push + a.hanger * F.hanger
-    + a.handle * K.handle + a.leg * K.leg + a.dryer * K.dryer + K.kit
+    + a.handle * K.handle + a.leg * K.leg + a.dryer * K.dryer + a.vent * K.vent + K.kit
     + a.glass * K.glassPerM2 + a.glassShelf * K.glassShelfPerM2 +(a.light ? (a.light / 1000) * K.light.perM + K.light.psu : 0);
   const meters = p.runs.reduce((x, r) => x + r.len, 0) + p.talls.reduce((x, t) => x + t.w, 0) + (s.form === "corner" ? TOP_D : 0);
   const design = (meters / 1000) * K.designPerM;
@@ -260,7 +275,7 @@ export function estimate(s) {
   let kedr = 0, stone = 0;
   if (s.top === "kedr") kedr = p.runs.reduce((x, r) => x + Math.ceil(r.len / K.top.kedr.plateLen), 0) * K.top.kedr.plate + K.top.kedr.cutouts;
   else stone = (topLen / 1000) * K.top.stone.perM;
-  const kitchen = ldsp + back + edge + facade + hardware + design + kedr;
+  const kitchen = ldsp + back + edge + facade + hardware + design + kedr;   // фартук в стоимость не входит
   const r = (x) => Math.round(x / P.roundTo) * P.roundTo;
   const range = (x) => ({ low: r(x * P.range.low), high: r(x * P.range.high) });
   return { plan: p, acc: a, kitchen: range(kitchen), stone: stone ? range(stone) : null, topLen,
@@ -269,6 +284,44 @@ export function estimate(s) {
 }
 
 /* ---------- 3D ---------- */
+// свечение подсветки: картинка с плавным переходом от яркого края к прозрачному
+// mode "mid": ярко по центру, гаснет к краям (свет от ленты посередине); иначе — ярко сверху, гаснет вниз
+const glowTex = {};
+function glowTexture(mode) {
+  const k = mode === "mid" ? "mid" : "top";
+  if (!glowTex[k]) {
+    const mid = k === "mid", c = document.createElement("canvas"); c.width = mid ? 256 : 4; c.height = mid ? 4 : 256;
+    const g = c.getContext("2d"), gr = mid ? g.createLinearGradient(0, 0, 256, 0) : g.createLinearGradient(0, 0, 0, 256);
+    const st = mid ? [[0, 0], [0.32, 0.4], [0.5, 1], [0.68, 0.4], [1, 0]] : [[0, 1], [0.35, 0.45], [1, 0]];
+    for (const [o, a] of st) gr.addColorStop(o, `rgba(255,255,255,${a})`);
+    g.fillStyle = gr; g.fillRect(0, 0, c.width, c.height);
+    glowTex[k] = new THREE.CanvasTexture(c);
+  }
+  return glowTex[k];
+}
+// текстуры столешницы — фото декоров; одна плитка текстуры ≈ TOP_TILE мм, соседние плитки зеркалятся без швов
+const TOP_TILE = 1400, topTex = new Map();
+function topTexture(tc) {
+  if (!topTex.has(tc.id)) {
+    const t = new THREE.TextureLoader().load(tc.tex);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.wrapS = t.wrapT = THREE.MirroredRepeatWrapping;
+    t.anisotropy = renderer ? renderer.capabilities.getMaxAnisotropy() : 4;
+    topTex.set(tc.id, t);
+  }
+  return topTex.get(tc.id);
+}
+// развёртка столешницы: рисунок идёт вдоль линии, масштаб по реальным размерам
+function topUV(mesh, len) {
+  const uv = mesh.geometry.attributes.uv;
+  const faces = [[TOP_D, 40], [TOP_D, 40], [len, TOP_D], [len, TOP_D], [len, 40], [len, 40]];   // px, nx, py, ny, pz, nz
+  for (let f = 0; f < 6; f++) {
+    const [a, b] = faces[f];
+    for (let q = 0; q < 4; q++) { const i = f * 4 + q; uv.setXY(i, (uv.getX(i) * a) / TOP_TILE, (uv.getY(i) * b) / TOP_TILE); }
+  }
+  uv.needsUpdate = true;
+  return mesh;
+}
 let renderer, scene, camera, controls, group, ready = false, movers = [];
 const anim = { open: 0 };
 const root = $("#cfg-canvas");
@@ -363,11 +416,16 @@ function build() {
   const metal = mat("#b9bcc0", 0.3);
   const dark = new THREE.MeshStandardMaterial({ color: 0x1c1c1e, roughness: 0.2, metalness: 0.3 });
   const steel = new THREE.MeshStandardMaterial({ color: 0xd3d6da, roughness: 0.38, metalness: 0.25 });   // нержавейка: без карты отражений высокий metalness выглядит чёрным
-  const alu = new THREE.MeshStandardMaterial({ color: 0xc4c7ca, roughness: 0.3, metalness: 0.35 });    // алюминиевая рамка
-  const topMat = mat(s.top === "kedr" ? "#d8d1c4" : "#ece9e3", s.top === "kedr" ? 0.5 : 0.25);
+  const alu = new THREE.MeshStandardMaterial({ color: new THREE.Color(FRAMES[s.frame][1]), roughness: 0.3, metalness: 0.35 });   // рамка стеклянного пенала
+  const tc = topColor(), topRough = s.top === "kedr" ? 0.5 : 0.25;
+  const topMat = new THREE.MeshStandardMaterial({ map: topTexture(tc), roughness: topRough });
+  topMat.userData.plainUV = true;   // развёртка столешницы своя, по длине линии
+  const apronMat = new THREE.MeshStandardMaterial({ color: 0xf7f6f3, roughness: 0.35 });   // фартук: ровный белый, только для вида
   const glassMat = new THREE.MeshStandardMaterial({ color: 0xe8f2f2, roughness: 0.02, transparent: true, opacity: 0.16 });   // прозрачное стекло
-  const ledMat = new THREE.MeshStandardMaterial({ color: 0xffd447, emissive: 0xffc21a, emissiveIntensity: 1.3 });   // жёлтая светодиодная лента
-  const glowMat = new THREE.MeshBasicMaterial({ color: 0xffd25e, transparent: true, opacity: 0.28, depthWrite: false }); // тёплый свет на стене
+  const ledMat = new THREE.MeshBasicMaterial({ color: 0xffd54a });   // светодиодная лента: светится ровно, тени её не затемняют
+  // тёплый свет от ленты: ярко у ленты и плавно затухает (fade: направление затухания вдоль плоскости)
+  const glow = (w, h, opacity) => new THREE.Mesh(new THREE.PlaneGeometry(w * mm, h * mm),
+    new THREE.MeshBasicMaterial({ map: glowTexture(), color: 0xffcf5a, transparent: true, opacity, depthWrite: false }));
   const wallMat = new THREE.MeshStandardMaterial({ color: 0xf1ede6, roughness: 0.95 });
   const backMat = mat("#e6e3dc", 0.8);
   const topT = s.top === "kedr" ? 38 : 30;
@@ -414,6 +472,12 @@ function build() {
     for (let i = 1; i <= (shelvesN || 0); i++) shelf(g, x0, w, y0 + (h * i) / (shelvesN + 1), d);
   };
   const shelf = (g, x0, w, y, d, m) => box(g, w - 2 * T - 2, T, d - 30, x0 + w / 2, y, (d - 30) / 2, m || body);
+  // вентиляционная решётка: рамка и горизонтальные прорези
+  const vent = (g, x, y, z) => {
+    const w = 320, h = 48;
+    box(g, w, h, 3, x, y, z, steel);
+    for (let i = 0; i < 6; i++) box(g, w - 30, 3, 2, x, y - h / 2 + 8 + i * 6.5, z + 2, dark);
+  };
   const doorsOf = (g, m, y0, h, zf, len, handleY) => {
     if (doorCount(m.w) === 2) {
       door(g, m.x, m.w / 2, y0, h, zf, true, handleY);
@@ -430,8 +494,9 @@ function build() {
   const groups = {};
   for (const r of p.runs) {
     const g = groups[r.wall] = wallGroup(r.wall);
-    box(g, r.len, PLINTH - 10, T, r.len / 2, (PLINTH - 10) / 2, BASE_D - 60, body);       // цоколь
-    box(g, r.len, topT, TOP_D, r.len / 2, yTop + topT / 2, TOP_D / 2, topMat);           // столешница
+    box(g, r.len, PLINTH - 10, T, r.len / 2, (PLINTH - 10) / 2, BASE_D - 60, front);      // цоколь — МДФ, как фасады
+    topUV(box(g, r.len, topT, TOP_D, r.len / 2, yTop + topT / 2, TOP_D / 2, topMat), r.len);   // столешница
+    if (h1) box(g, r.len, APRON_H, 6, r.len / 2, yTop + topT + APRON_H / 2, 3, apronMat);   // фартук на стене
     for (const m of r.base) {
       const cx = m.x + m.w / 2, zf = BASE_D + T / 2, yc = PLINTH + BASE_H / 2;
       if (m.kind === "filler") { face(g, m.w - 2, BASE_H - 4, cx, yc, zf, front); continue; }
@@ -457,7 +522,7 @@ function build() {
         box(g, m.w - 20, BASE_H - 160, 10, cx, PLINTH + 150 + (BASE_H - 160) / 2, zf, dark);  // духовка
         box(g, m.w - 120, 20, 20, cx, PLINTH + BASE_H - 60, zf + 15, steel);
       } else if (m.kind === "corner") {
-        box(g, m.w - 400 - 3, BASE_H - 4, T, m.x + (m.w - 400) / 2, yc, zf, body);          // глухая часть угла
+        face(g, m.w - 400 - 3, BASE_H - 4, m.x + (m.w - 400) / 2, yc, zf, front);           // глухая часть угла — МДФ, как фасады
         door(g, m.x + m.w - 400, 400, PLINTH, BASE_H, zf, false, PLINTH + BASE_H - 120);
       } else {
         doorsOf(g, m, PLINTH, BASE_H, zf, r.len, PLINTH + BASE_H - 120);
@@ -489,11 +554,15 @@ function build() {
         const sw = (m.w - 2 * T - 216) / 2;
         for (const sx of [m.x + T + sw / 2, m.x + m.w - T - sw / 2]) box(g, sw - 2, T, UP_D - 30, sx, UP_Y + 140 + bh / 2, (UP_D - 30) / 2, body);
       }
-      if (s.light) {                                                                        // подсветка под шкафом: лента и свет на стене
-        box(g, m.w - 40, 10, 30, cx, UP_Y - 6, UP_D - 50, ledMat);
-        const gw = new THREE.Mesh(new THREE.PlaneGeometry((m.w - 20) * mm, (UP_Y - yTop - 60) * mm), glowMat);
-        gw.position.set(cx * mm, ((UP_Y + yTop + 60) / 2) * mm, 3 * mm);
-        g.add(gw);
+      if (s.light) {                                                                        // подсветка под шкафом: лента по кромке, свет на стене и столешнице
+        box(g, m.w - 20, 12, 22, cx, UP_Y - 7, UP_D - 25, ledMat);
+        const hw = UP_Y - yTop - 40, wall = glow(m.w, hw, 0.75);
+        wall.position.set(cx * mm, (UP_Y - hw / 2) * mm, 8 * mm);                           // на стене: ярко сверху, к столешнице гаснет
+        g.add(wall);
+        const desk = glow(m.w, TOP_D - 40, 0.55);
+        desk.rotation.x = -Math.PI / 2;
+        desk.position.set(cx * mm, (yTop + 42) * mm, ((TOP_D - 40) / 2 + 10) * mm);       // на столешнице: ярко у стены, к краю гаснет
+        g.add(desk);
       }
       doorsOf(g, m, UP_Y, h1, zf, r.ulen, null);                                             // открывается за низ фасада
       if (h2) {
@@ -518,7 +587,7 @@ function build() {
       }
       continue;
     }
-    box(gA, t.w - 2, PLINTH - 10, T, cx, (PLINTH - 10) / 2, BASE_D - 60, body);
+    box(gA, t.w - 2, PLINTH - 10, T, cx, (PLINTH - 10) / 2, BASE_D - 60, front);   // цоколь пенала — МДФ
     if (t.kind === "glass") {                                                                // стеклянная дверь во всю высоту, стеклянные полки
       const glass2 = s.glass2 && t === p.talls[p.talls.length - 1];
       hollow(gA, t.x + 1, t.w - 2, PLINTH, top - PLINTH, BASE_D, 0, glass2);
@@ -533,11 +602,17 @@ function build() {
       }
       // подсветка как в цехе: вертикальные ленты в профиле у передних кромок обеих боковин, внутри тёплый свет
       const ih = top - PLINTH - 2 * T;
-      for (const lx of [t.x + T + 5, t.x + t.w - T - 5]) box(gA, 8, ih, 14, lx, (top + PLINTH) / 2, BASE_D - 22, ledMat);
-      const gl = new THREE.Mesh(new THREE.PlaneGeometry((t.w - 2 * T - 4) * mm, ih * mm),
-        new THREE.MeshBasicMaterial({ color: 0xffc94a, transparent: true, opacity: 0.45, depthWrite: false }));
-      gl.position.set(cx * mm, ((top + PLINTH) / 2) * mm, 7 * mm);
-      gA.add(gl);
+      // подсветка как в цехе: вертикальная лента по центру боковины и по центру задней стенки, свет расходится в стороны
+      const ym = (top + PLINTH) / 2, lit = (w) => new THREE.MeshBasicMaterial({ map: glowTexture("mid"), color: 0xffcf5a, transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide });
+      box(gA, 6, ih, 14, t.x + T + 3, ym, BASE_D / 2, ledMat);                               // лента на боковине
+      box(gA, 14, ih, 6, cx, ym, 7, ledMat);                                                   // лента на задней стенке
+      const side = new THREE.Mesh(new THREE.PlaneGeometry((BASE_D - 30) * mm, ih * mm), lit());
+      side.rotation.y = Math.PI / 2;
+      side.position.set((t.x + T + 1) * mm, ym * mm, (BASE_D / 2) * mm);
+      gA.add(side);
+      const back = new THREE.Mesh(new THREE.PlaneGeometry((t.w - 2 * T - 4) * mm, ih * mm), lit());
+      back.position.set(cx * mm, ym * mm, 5 * mm);
+      gA.add(back);
       door(gA, t.x, t.w, PLINTH, top - PLINTH, zf, false, PLINTH + BASE_H + 160, { glass: true });
       continue;
     }
@@ -549,8 +624,11 @@ function build() {
       shelf(gA, t.x, t.w, PLINTH + FRIDGE_IN + 10, BASE_D);
       door(gA, t.x, t.w, PLINTH, BASE_H, zf, false, PLINTH + BASE_H - 120, { inner: true });
       door(gA, t.x, t.w, PLINTH + BASE_H + 3, FRIDGE_IN - BASE_H - 3, zf, false, PLINTH + BASE_H + 160, { inner: true });
-      const dh = top - PLINTH - FRIDGE_IN;                                                  // одна дверь до верха, без антресоли
+      const dh = top - PLINTH - FRIDGE_IN - VENT_H;                                         // одна дверь до планки, без антресоли
       if (dh > 150) door(gA, t.x, t.w, PLINTH + FRIDGE_IN + 3, dh - 3, zf, false, PLINTH + FRIDGE_IN + 60);
+      face(gA, t.w - 3, VENT_H - 4, cx, top - VENT_H / 2, zf, front);                        // планка над дверью
+      vent(gA, cx, top - VENT_H / 2, zf + T / 2 + 1);                                        // решётка сверху
+      vent(gA, cx, (PLINTH - 10) / 2, BASE_D - 60 + T / 2 + 1);                              // решётка в цоколе
       continue;
     } else {                                                                                 // ящик 360, духовка, СВЧ, полка над СВЧ
       const yo = PLINTH + OVEN_DRAWER;
@@ -599,6 +677,7 @@ function swatches(host, list, key) {
     b.className = "sw" + (d.wood ? " wood" : "") + (d.gloss ? " gloss" : "");
     b.style.setProperty("--c", d.color);
     if (d.wood) b.style.backgroundImage = `url(${woodSwatch(d.color)})`;
+    if (d.tex) { b.style.backgroundImage = `url(${d.tex})`; b.style.backgroundSize = "cover"; b.style.backgroundPosition = "center"; }
     b.title = d.name;
     b.setAttribute("aria-label", d.name);
     b.setAttribute("aria-pressed", String(state[key] === d.id));
@@ -630,6 +709,9 @@ function refresh(skipBuild) {
   $("#glass-row").hidden = !state.pens.glass;
   pressed("[data-glass2]", "glass2", String(state.glass2));
   pressed("[data-gshelf]", "gshelf", state.gShelf);
+  pressed("[data-frame]", "frame", state.frame);
+  swatches($("#sw-top"), TOP_COLORS, "topColor");
+  $("#n-top").textContent = topColor().name;
   pressed("[data-fmat]", "fmat", state.fmat);
   pressed("[data-mill]", "mill", state.mill);
   pressed("[data-top]", "top", state.top);
@@ -657,7 +739,7 @@ function sizeText() {
 function penText(t, p) {
   if (t.kind !== "glass") return PENS[t.kind];
   const two = state.glass2 && t === p.talls[p.talls.length - 1];
-  return `пенал ${t.w} мм со стеклянной дверью во всю высоту` + (two ? " и стеклянной боковиной" : "")
+  return `пенал ${t.w} мм со стеклянной дверью во всю высоту` + (two ? " и стеклянной боковиной" : "") + `, рамка — ${FRAMES[state.frame][0]}`
     + (state.gShelf === "glass" ? ", стеклянные полки" : ", полки из ЛДСП") + ", с подсветкой";
 }
 function techText(p) {
@@ -682,7 +764,7 @@ function price() {
     `Техника: ${techText(p)}`,
     `Корпус: ЛДСП, ${decor(state.body).name}`,
     `Фасады: ${facadeText()}`,
-    `Столешница: ${KITCHEN.top[state.top].name}`,
+    `Столешница: ${KITCHEN.top[state.top].name}, цвет «${topColor().name}»`,
     `Фурнитура: ${F.name}`,
     `Ориентировочно на сайте: от ${fmt(e.low)} до ${fmt(e.high)}`,
     "Фото или план кухни пришлю в этот чат.",
@@ -720,13 +802,13 @@ async function downloadKP(btn) {
         `- Фасады: ${facadeText()}`,
         `- Нижние шкафы с дверями` + (drawerSec ? ", секция с выкатными ящиками 360 + 180 + 180 мм" : "") + (p.talls.some((t) => t.kind === "oven") ? ", в пенале под духовкой ящик 360 мм" : ""),
         `- Фурнитура ${F.name}: петли с доводчиком, направляющие с доводчиком` + (a.push ? ", открывание антресолей нажатием" : ""),
-        kedr ? `- Столешница: ${KITCHEN.top.kedr.name}, вырезы под мойку и варочную панель` : "",
+        kedr ? `- Столешница: ${KITCHEN.top.kedr.name}, цвет «${topColor().name}», вырезы под мойку и варочную панель` : "",
       ].filter(Boolean),
       low: e.kitchen.low, high: e.kitchen.high,
     }];
     if (e.stone) items.push({
       name: "Столешница из искусственного камня",
-      lines: [`- Длина ${(e.topLen / 1000).toFixed(2).replace(".", ",")} м.п., ширина 600 мм`, "- Вклейка мойки и вырезы, цвет по каталогу"],
+      lines: [`- Длина ${(e.topLen / 1000).toFixed(2).replace(".", ",")} м.п., ширина 600 мм`, `- Вклейка мойки и вырезы, цвет «${topColor().name}» (точный декор по каталогу)`],
       qty: (e.topLen / 1000).toFixed(2).replace(".", ","), unit: "м.п.",
       low: e.stone.low, high: e.stone.high,
     });
@@ -741,7 +823,7 @@ async function downloadKP(btn) {
         "Материалы, цвета и фурнитура подбираются и согласовываются по образцам в нашем офисе. Цвета на изображениях приблизительные.",
         "Условия оплаты: предоплата 70%, остаток 30% перед монтажом.",
         "Доставка и монтаж входят в стоимость.",
-        "В стоимость не входят: ручки (их установка включена), бытовая техника, мойка, смеситель и вытяжка.",
+        "В стоимость не входят: ручки (их установка включена), бытовая техника, мойка, смеситель, вытяжка и фартук.",
         "Чтобы получить точное КП, отправьте этот расчёт нам в WhatsApp.",
       ],
       file: `КП_ORDA_ZHIHAZ_кухня_${state.A}${state.form === "corner" ? "x" + state.B : ""}`,
@@ -782,6 +864,7 @@ function bind() {
   on("[data-light]", "light", "light", (v) => v === "true");
   on("[data-glass2]", "glass2", "glass2", (v) => v === "true");
   on("[data-gshelf]", "gshelf", "gShelf");
+  on("[data-frame]", "frame", "frame");
   $("#f-dw").addEventListener("change", (e) => { state.dw = +e.target.value; refresh(); });
   $("#f-glassw").addEventListener("change", (e) => { state.glassW = +e.target.value; refresh(); });
   on("[data-fmat]", "fmat", "fmat");
