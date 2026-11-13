@@ -15,10 +15,20 @@
   function textOf(url) {
     try { return new URL(url, location.href).searchParams.get("text") || ""; } catch (e) { return ""; }
   }
+  // если у кнопки нет своего сообщения — подставляем готовое, с названием страницы, откуда пишет клиент
+  function defaultText() {
+    var h = document.querySelector("h1");
+    var page = h ? h.textContent.trim() : document.title.split(" — ")[0];
+    return "Здравствуйте! Хочу получить расчёт стоимости (с сайта ordazhihaz.kz, страница «" + page + "»).\nФото или размеры пришлю в этот чат.";
+  }
+  function withText(url) {
+    if (textOf(url)) return url;
+    return url.split("?")[0] + "?text=" + encodeURIComponent(defaultText());
+  }
 
   function open(anchor, url) {
     close();
-    var text = textOf(url);
+    var text = textOf(withText(url));
     pop = document.createElement("div");
     pop.className = "wa-pop";
     pop.setAttribute("role", "dialog");
@@ -48,8 +58,11 @@
     var a = e.target.closest && e.target.closest('a[href^="https://wa.me/"]');
     if (a) {
       if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
-      // кнопки, где номер уже назван явно, не трогаем
-      if (a.closest(".wa-pop, .wa-md-in, .cta-btns") || /^WhatsApp:\s/.test(a.textContent.trim())) return;
+      // кнопки, где номер уже назван явно, открываются сразу — но тоже с готовым сообщением
+      if (a.closest(".wa-pop, .wa-md-in, .cta-btns") || /^WhatsApp:\s/.test(a.textContent.trim())) {
+        if (!a.closest(".wa-pop")) a.href = withText(a.href);
+        return;
+      }
       e.preventDefault();
       open(a, a.href);
       return;
