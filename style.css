@@ -417,6 +417,20 @@ mark.todo { background: #ffe27a; color: #3a2e00; padding: 0 4px; border-radius: 
 .price-t td:not(:first-child), .price-t th:not(:first-child) { white-space: nowrap; }
 .ss-notes { margin-top: 12px; }
 .ss-price { margin-top: 28px; }
+/* «Услуги цеха»: картинки фрезеровки и форма заявки */
+.mills { margin: 28px 0; }
+.mill-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; max-width: 960px; }
+.mill { margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 12px 14px; }
+.mill svg { width: 100%; height: auto; display: block; }
+.mill figcaption b { display: block; font-family: var(--serif); color: var(--emerald); font-size: 18px; }
+.mill figcaption span { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.mill dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; margin: 0; font-size: 14px; }
+.mill dt { color: var(--muted); }
+.mill dd { margin: 0; text-align: right; font-weight: 600; }
+@media (max-width: 760px) { .mill-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.us-block { border: 1px solid var(--line) !important; border-radius: 12px; padding: 4px 12px 8px !important; margin: 10px 0 !important; }
+.us-block legend { font-size: 16px; margin: 0; padding: 0 6px; }
+.us-what button[aria-pressed="true"] { background: var(--emerald-2); color: #fff; border-color: var(--emerald-2); }
 /* прайсы раскрывающимися блоками: «услуга — цена» */
 .ss-prices { max-width: 760px; margin: 0 0 28px; }
 .pr { background: var(--card); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 8px; }
