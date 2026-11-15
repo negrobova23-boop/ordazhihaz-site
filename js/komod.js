@@ -16,6 +16,7 @@ const TOP_T = 18;        // крышка (материал фасадов)
 const PLINTH = 80;       // цоколь — МДФ, как фасады
 const LOW = 150;         // невысокий верхний ящик
 const GAP = 3;           // зазор между фасадами
+const OVER = 20;         // свес крышки над фасадами спереди
 const handles = (w) => (w > 600 ? 2 : 1);   // фасад шире 600 мм — две ручки
 // где стоят ручки на фасаде шириной w (смещение от центра)
 const handleXs = (w) => (handles(w) === 2 ? [-w / 4, w / 4] : [0]);
@@ -51,7 +52,8 @@ function limits(key) {
   return shoe ? [300, 350] : [350, 600];   // D
 }
 // высота обувницы складывается из ярусов: цоколь + 3 откидных фасада + ящик + крышка
-const shoeH = (s) => PLINTH + 3 * s.flap + (s.shoeDrawer ? LOW : 0) + TOP_T;
+// у обувницы фасады внутренние (между боковинами, над дном), поэтому добавляется толщина дна
+const shoeH = (s) => PLINTH + T + 3 * s.flap + (s.shoeDrawer ? LOW : 0) + TOP_T;
 function normalize() {
   for (const k of ["W", "H", "D"]) {
     const [lo, hi] = limits(k);
@@ -66,9 +68,11 @@ function normalize() {
 function fronts(s) {
   const out = [], x0 = -s.W / 2;
   let y = PLINTH;
-  if (s.kind === "shoe") {
-    for (let i = 0; i < 3; i++) { out.push({ y, h: s.flap, x: x0, w: s.W, type: "flap" }); y += s.flap; }
-    if (s.shoeDrawer) out.push({ y, h: LOW, x: x0, w: s.W, type: "drawer" });
+  if (s.kind === "shoe") {                       // внутренние фасады: между боковинами, над дном
+    const xi = -s.W / 2 + T, wi = s.W - 2 * T;
+    y += T;
+    for (let i = 0; i < 3; i++) { out.push({ y, h: s.flap, x: xi, w: wi, type: "flap" }); y += s.flap; }
+    if (s.shoeDrawer) out.push({ y, h: LOW, x: xi, w: wi, type: "drawer" });
     return out;
   }
   const avail = s.H - PLINTH - TOP_T;
@@ -93,7 +97,7 @@ export function estimate(s) {
   const W = s.W, H = s.H, D = s.D, inner = W - 2 * T;
   if (s.sides) front(D, H - TOP_T); else { L(2 * m2(H - TOP_T, D)); a.edge += 2 * H; }   // боковины
   L(2 * m2(inner, D)); a.edge += 2 * inner;                                              // дно и стяжка под крышкой
-  front(W, D);                                                                            // крышка — как фасады
+  front(W, s.kind === "shoe" ? D : D + T + OVER);                                         // крышка — как фасады; у комода со свесом
   front(W, PLINTH);                                                                       // цоколь — МДФ, как фасады
   a.back += m2(W, H);
   for (const f of fronts(s)) {
@@ -196,9 +200,10 @@ function build() {
   box(group, T, H - TOP_T, D, W / 2 - T / 2, (H - TOP_T) / 2, D / 2, sideMat);
   box(group, W - 2 * T, T, D, 0, PLINTH + T / 2, D / 2, body);
   box(group, W - 2 * T, H - PLINTH - TOP_T, 4, 0, (H - TOP_T + PLINTH) / 2, 2, backMat);
-  box(group, W, TOP_T, D + 4, 0, H - TOP_T / 2, D / 2 + 2, front);
+  const topD = s.kind === "shoe" ? D : D + T + OVER;                         // у обувницы крышка заподлицо с боковинами
+  box(group, W, TOP_T, topD, 0, H - TOP_T / 2, topD / 2, front);
   box(group, W - 2 * T, PLINTH - 10, T, 0, (PLINTH - 10) / 2, D - 40, front);
-  const zf = D + T / 2;
+  const zf = s.kind === "shoe" ? D - T / 2 : D + T / 2;                   // обувница — фасады внутри корпуса
   for (const f of fronts(s)) {
     const cx = f.x + f.w / 2;
     if (f.type === "drawer") {                                                  // выдвижной ящик
