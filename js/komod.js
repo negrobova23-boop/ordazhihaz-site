@@ -53,6 +53,9 @@ function limits(key) {
 }
 // высота обувницы складывается из ярусов: цоколь + 3 откидных фасада + ящик + крышка
 // у обувницы фасады внутренние (между боковинами, над дном), поэтому добавляется толщина дна
+// полка откидной секции: наклон 45° от нижнего края фасада, длина — чтобы поместилась по глубине и высоте секции
+const SHELF_A = Math.PI / 4, SHELF_SIN = Math.sin(SHELF_A), SHELF_COS = Math.cos(SHELF_A);
+const shelfLen = (h, D) => Math.min(h * 0.72, (D - T - 30) / SHELF_COS);
 const shoeH = (s) => PLINTH + T + 3 * s.flap + (s.shoeDrawer ? LOW : 0) + TOP_T;
 function normalize() {
   for (const k of ["W", "H", "D"]) {
@@ -105,7 +108,7 @@ export function estimate(s) {
     if (f.type === "drawer") {                                                            // короб ящика
       const bh = Math.max(80, f.h - 60);
       L(2 * m2(D - 50, bh) + 2 * m2(f.w - 2 * T - 30, bh)); a.back += m2(f.w - 2 * T, D - 50); a.edge += 2 * f.w; a.drawer++;
-    } else { L(m2(f.w - 2 * T, 120)); a.flap++; }                                         // откидная секция: полка-подставка
+    } else { L(m2(f.w - 48, shelfLen(f.h, D))); a.edge += f.w - 48; a.flap++; }          // откидная секция: наклонная полка
   }
   let ldsp = 0;
   for (const [id, area] of Object.entries(a.ldsp)) { const sh = P.sheet[decor(id).tier]; ldsp += Math.ceil(area / (sh.area * P.use.ldsp)) * sh.price; }
@@ -174,16 +177,14 @@ function face(g, w, h, cx, cy, z, front) {
 // ручка — посередине верхнего поля фасада, не заходит на фрезеровку
 const handleOff = (w, h) => Math.max(10, Math.min(20, millInset(w, h) / 2));
 
-// веерная опора механизма обувницы (сектор четверти круга с двумя вырезами), толщина 8 мм
+// пластина механизма обувницы: сектор от полки (угол a0) до фасада (вертикаль) с окном, толщина 8 мм
 const mechMat = mat("#80858c", 0.5);
-function fanGeometry(R) {
-  const r = R * mm, b = 22 * mm, sh = new THREE.Shape();
-  sh.moveTo(0, 0); sh.lineTo(r, 0); sh.absarc(0, 0, r, 0, Math.PI / 2, false); sh.lineTo(0, 0);
-  for (const [a0, a1] of [[0.14, 0.72], [0.85, 1.43]]) {                   // два окна, между ними — спица
-    const h = new THREE.Path(), ri = r - b, r0 = b * 1.6;
-    h.moveTo(r0 * Math.cos(a0), r0 * Math.sin(a0)); h.absarc(0, 0, ri, a0, a1, false);
-    h.lineTo(r0 * Math.cos(a1), r0 * Math.sin(a1)); sh.holes.push(h);
-  }
+function fanGeometry(R, a0) {
+  const r = R * mm, b = 20 * mm, a1 = Math.PI / 2, sh = new THREE.Shape();
+  sh.moveTo(0, 0); sh.lineTo(r * Math.cos(a0), r * Math.sin(a0)); sh.absarc(0, 0, r, a0, a1, false); sh.lineTo(0, 0);
+  const h = new THREE.Path(), ri = r - b, r0 = b * 2.4, c0 = a0 + 0.12, c1 = a1 - 0.12;
+  h.moveTo(r0 * Math.cos(c0), r0 * Math.sin(c0)); h.absarc(0, 0, ri, c0, c1, false);
+  h.lineTo(r0 * Math.cos(c1), r0 * Math.sin(c1)); sh.holes.push(h);
   return new THREE.ExtrudeGeometry(sh, { depth: 8 * mm, bevelEnabled: false });
 }
 
@@ -221,21 +222,21 @@ function build() {
       pv.position.set(cx * mm, f.y * mm, zf * mm);
       face(pv, f.w - GAP, f.h - GAP, 0, f.h / 2, 0, front);
       for (const hx of handleXs(f.w)) box(pv, Math.min(160, f.w * 0.3), 12, 14, hx, f.h - handleOff(f.w, f.h), T / 2 + 8, metal);
-      const tray = Math.min(D - 60, 180);
-      box(pv, f.w - 2 * T - 20, T, tray, 0, f.h * 0.35, -T / 2 - tray / 2, body);   // подставка для обуви
-      box(pv, f.w - 2 * T - 20, 60, T, 0, f.h * 0.35 + 30, -T / 2 - tray, body);    // бортик
-      // поворотный механизм у каждой боковины: веерная опора, поворачивается вместе с секцией
-      const R = Math.min(f.h * 0.72, D - 70, 270);
+      // полка от нижнего края фасада вглубь и вверх под 45° (в профиль — «галочка» с фасадом),
+      // по бокам — пластины механизма между фасадом и полкой; всё поворачивается вместе с фасадом
+      const L = shelfLen(f.h, D);
+      const shelf = box(pv, f.w - 48, T, L, 0, 14 + SHELF_SIN * L / 2, -T / 2 - SHELF_COS * L / 2, body);
+      shelf.rotation.x = SHELF_A;
       for (const sx of [-1, 1]) {
-        const mx = sx * (f.w / 2 - T - 10);
-        const fan = new THREE.Mesh(fanGeometry(R), mechMat);
+        const fan = new THREE.Mesh(fanGeometry(L + 10, SHELF_A), mechMat);        // пластина механизма — поворачивается с секцией
         fan.rotation.y = Math.PI / 2;
-        fan.position.set((mx - 4) * mm, (T + 16) * mm, (-T / 2 - 2) * mm);
+        fan.position.set((sx > 0 ? f.w / 2 - 12 : -f.w / 2 + 4) * mm, 14 * mm, (-T / 2 - 2) * mm);
         fan.castShadow = true; pv.add(fan);
-        box(group, 10, 26, 70, mx, f.y + T + 13, zf - T / 2 - 45, mechMat);            // неподвижное основание на корпусе
+        // неподвижная часть на боковине: стойка с осью поворота у нижнего края фасада
+        box(group, 6, f.h * 0.4, 26, cx + sx * (f.w / 2 - 3), f.y + 14 + f.h * 0.2, zf - T / 2 - 16, mechMat);
       }
       group.add(pv);
-      movers.push((t) => { pv.rotation.x = 0.78 * t; });
+      movers.push((t) => { pv.rotation.x = 0.6 * t; });
     }
   }
   for (const m of movers) m(anim.open);
