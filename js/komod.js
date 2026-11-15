@@ -173,6 +173,19 @@ function face(g, w, h, cx, cy, z, front) {
   box(g, b, h - 2 * ins, d, cx - w / 2 + ins, cy, zf, m); box(g, b, h - 2 * ins, d, cx + w / 2 - ins, cy, zf, m);
 }
 
+// веерная опора механизма обувницы (сектор четверти круга с двумя вырезами), толщина 8 мм
+const mechMat = mat("#80858c", 0.5);
+function fanGeometry(R) {
+  const r = R * mm, b = 22 * mm, sh = new THREE.Shape();
+  sh.moveTo(0, 0); sh.lineTo(r, 0); sh.absarc(0, 0, r, 0, Math.PI / 2, false); sh.lineTo(0, 0);
+  for (const [a0, a1] of [[0.14, 0.72], [0.85, 1.43]]) {                   // два окна, между ними — спица
+    const h = new THREE.Path(), ri = r - b, r0 = b * 1.6;
+    h.moveTo(r0 * Math.cos(a0), r0 * Math.sin(a0)); h.absarc(0, 0, ri, a0, a1, false);
+    h.lineTo(r0 * Math.cos(a1), r0 * Math.sin(a1)); sh.holes.push(h);
+  }
+  return new THREE.ExtrudeGeometry(sh, { depth: 8 * mm, bevelEnabled: false });
+}
+
 function build() {
   if (!ready) return;
   while (group.children.length) { const c = group.children.pop(); c.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); }
@@ -209,8 +222,18 @@ function build() {
       const tray = Math.min(D - 60, 180);
       box(pv, f.w - 2 * T - 20, T, tray, 0, f.h * 0.35, -T / 2 - tray / 2, body);   // подставка для обуви
       box(pv, f.w - 2 * T - 20, 60, T, 0, f.h * 0.35 + 30, -T / 2 - tray, body);    // бортик
+      // поворотный механизм у каждой боковины: веерная опора, поворачивается вместе с секцией
+      const R = Math.min(f.h * 0.72, D - 70, 270);
+      for (const sx of [-1, 1]) {
+        const mx = sx * (f.w / 2 - T - 10);
+        const fan = new THREE.Mesh(fanGeometry(R), mechMat);
+        fan.rotation.y = Math.PI / 2;
+        fan.position.set((mx - 4) * mm, (T + 16) * mm, (-T / 2 - 2) * mm);
+        fan.castShadow = true; pv.add(fan);
+        box(group, 10, 26, 70, mx, f.y + T + 13, zf - T / 2 - 45, mechMat);            // неподвижное основание на корпусе
+      }
       group.add(pv);
-      movers.push((t) => { pv.rotation.x = 0.6 * t; });
+      movers.push((t) => { pv.rotation.x = 0.78 * t; });
     }
   }
   for (const m of movers) m(anim.open);
