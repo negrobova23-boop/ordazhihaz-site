@@ -497,6 +497,11 @@ mark.todo { background: #ffe27a; color: #3a2e00; padding: 0 4px; border-radius: 
 .sw.gloss { background: linear-gradient(135deg, rgba(255, 255, 255, .9), rgba(255, 255, 255, 0) 55%), var(--c); }
 .cfg-note-box { margin: 4px 0 0; font-size: 14px; line-height: 1.45; color: var(--muted); border-left: 3px solid var(--gold); padding: 6px 10px; }
 @media (max-width: 560px) { .fills { grid-template-columns: 1fr; } }
+/* конструктор ТВ-зоны: карточки готовых решений со схемой */
+.fills.sols { grid-template-columns: repeat(2, 1fr); }
+.sols button svg { display: block; width: 100%; height: auto; border-radius: 8px; margin-bottom: 8px; }
+.sols button:disabled { opacity: .45; cursor: not-allowed; }
+@media (max-width: 560px) { .fills.sols { grid-template-columns: 1fr 1fr; } }
 .secs { display: grid; gap: 8px; }
 .sec-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 8px; border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px 10px; }
 .sec-name { grid-column: 1 / -1; margin: 0; font-size: 14px; font-weight: 600; color: var(--emerald); }
