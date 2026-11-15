@@ -6,7 +6,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { PRICES, DECORS, FILM_COLORS, PAINT_COLORS } from "./shkaf-prices.js";
 import { KITCHEN } from "./kuhnya-prices.js";
 import { makeKP } from "./shkaf-kp.js";
-import { mm, mat, box, woodSwatch, setAnisotropy } from "./cfg3d.js";
+import { mm, mat, box, millFace, millInset, woodSwatch, setAnisotropy } from "./cfg3d.js";
 
 const WA = "https://wa.me/77769994032";
 const $ = (s, r) => (r || document).querySelector(s);
@@ -35,7 +35,7 @@ const FMATS = {
   film: { name: "МДФ в плёнке", list: FILM_COLORS },
   paint: { name: "МДФ в краске", list: PAINT_COLORS },
 };
-const MILLS = { modern: "Модерн", shtapik: "Штапик", vyborka: "Выборка", classic: "Классика" };
+const MILLS = { modern: "Модерн", relief: "Рифлёнка", vyborka: "Выборка", classic: "Классика" };
 
 const state = { kind: "komod", W: 1000, H: 850, D: 450, layout: "equal4", flap: 375, shoeDrawer: true,
   body: "white", fmat: "film", mill: "modern", facade: "f-white", sides: false, fit: "dtc", open: false };
@@ -164,14 +164,11 @@ function resize() {
 }
 // фасад с фрезеровкой (для МДФ)
 function face(g, w, h, cx, cy, z, front) {
-  box(g, w, h, T, cx, cy, z, front);
-  if (state.fmat === "ldsp" || state.mill === "modern" || w < 120 || h < 120) return;
-  const ins = Math.min(45, w * 0.14, h * 0.18), b = state.mill === "classic" ? 34 : 9, d = state.mill === "vyborka" ? 1 : 5;
-  const m = state.mill === "vyborka" ? (() => { const c = front.clone(); c.color = c.color.clone().multiplyScalar(0.72); return c; })() : front;
-  const zf = z + T / 2 + d / 2;
-  box(g, w - 2 * ins, b, d, cx, cy + h / 2 - ins, zf, m); box(g, w - 2 * ins, b, d, cx, cy - h / 2 + ins, zf, m);
-  box(g, b, h - 2 * ins, d, cx - w / 2 + ins, cy, zf, m); box(g, b, h - 2 * ins, d, cx + w / 2 - ins, cy, zf, m);
+  if (state.fmat === "ldsp") box(g, w, h, T, cx, cy, z, front);
+  else millFace(g, w, h, T, cx, cy, z, front, state.mill);
 }
+// ручка — посередине верхнего поля фасада, не заходит на фрезеровку
+const handleOff = (w, h) => Math.max(10, Math.min(20, millInset(w, h) / 2));
 
 // веерная опора механизма обувницы (сектор четверти круга с двумя вырезами), толщина 8 мм
 const mechMat = mat("#80858c", 0.5);
@@ -207,7 +204,7 @@ function build() {
     if (f.type === "drawer") {                                                  // выдвижной ящик
       const dg = new THREE.Group();
       face(dg, f.w - GAP, f.h - GAP, cx, f.y + f.h / 2, zf, front);
-      for (const hx of handleXs(f.w)) box(dg, Math.min(160, f.w * 0.3), 12, 14, cx + hx, f.y + f.h - Math.min(40, f.h / 3), zf + 16, metal);
+      for (const hx of handleXs(f.w)) box(dg, Math.min(160, f.w * 0.3), 12, 14, cx + hx, f.y + f.h - handleOff(f.w, f.h), zf + 16, metal);
       const bh = Math.max(60, f.h - 70), dep = D - 60, z0 = zf - T / 2 - dep / 2;
       box(dg, T, bh, dep, f.x + T + 14, f.y + 20 + bh / 2, z0, body); box(dg, T, bh, dep, f.x + f.w - T - 14, f.y + 20 + bh / 2, z0, body);
       box(dg, f.w - 2 * T - 30, bh, T, cx, f.y + 20 + bh / 2, z0 - dep / 2, body);
@@ -218,7 +215,7 @@ function build() {
       const pv = new THREE.Group();
       pv.position.set(cx * mm, f.y * mm, zf * mm);
       face(pv, f.w - GAP, f.h - GAP, 0, f.h / 2, 0, front);
-      for (const hx of handleXs(f.w)) box(pv, Math.min(160, f.w * 0.3), 12, 14, hx, f.h - 40, T / 2 + 8, metal);
+      for (const hx of handleXs(f.w)) box(pv, Math.min(160, f.w * 0.3), 12, 14, hx, f.h - handleOff(f.w, f.h), T / 2 + 8, metal);
       const tray = Math.min(D - 60, 180);
       box(pv, f.w - 2 * T - 20, T, tray, 0, f.h * 0.35, -T / 2 - tray / 2, body);   // подставка для обуви
       box(pv, f.w - 2 * T - 20, 60, T, 0, f.h * 0.35 + 30, -T / 2 - tray, body);    // бортик

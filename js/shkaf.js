@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { PRICES, DECORS, FILM_COLORS, PAINT_COLORS } from "./shkaf-prices.js";
 import { makeKP } from "./shkaf-kp.js";
-import { mm, mat, box, woodSwatch, setAnisotropy } from "./cfg3d.js";
+import { mm, mat, box, millFace, woodSwatch, setAnisotropy } from "./cfg3d.js";
 
 const WA = "https://wa.me/77769994032";
 const $ = (s, r) => (r || document).querySelector(s);
@@ -269,33 +269,8 @@ function tick() {
 
 // фасад двери с фрезеровкой (только для МДФ)
 function doorFace(parent, w, h, cx, front, style) {
-  box(parent, w, h, T, cx, 0, 0, front);
-  if (state.fmat === "ldsp" || style === "modern") return;
-  const zf = T / 2;
-  const ins = Math.min(70, w * 0.14, h * 0.14);
-  if (style === "shtapik") {
-    const b = 12, d = 6;
-    box(parent, w - 2 * ins, b, d, cx, h / 2 - ins, zf + d / 2, front);
-    box(parent, w - 2 * ins, b, d, cx, -h / 2 + ins, zf + d / 2, front);
-    box(parent, b, h - 2 * ins, d, cx - w / 2 + ins, 0, zf + d / 2, front);
-    box(parent, b, h - 2 * ins, d, cx + w / 2 - ins, 0, zf + d / 2, front);
-  } else if (style === "vyborka") {
-    const dark = front.clone();
-    dark.color = dark.color.clone().multiplyScalar(0.7);
-    const b = 7, d = 1;
-    box(parent, w - 2 * ins, b, d, cx, h / 2 - ins, zf + d / 2, dark);
-    box(parent, w - 2 * ins, b, d, cx, -h / 2 + ins, zf + d / 2, dark);
-    box(parent, b, h - 2 * ins, d, cx - w / 2 + ins, 0, zf + d / 2, dark);
-    box(parent, b, h - 2 * ins, d, cx + w / 2 - ins, 0, zf + d / 2, dark);
-  } else if (style === "classic") {
-    const f = Math.min(85, w * 0.17, h * 0.17), d = 5;
-    box(parent, w, f, d, cx, h / 2 - f / 2, zf + d / 2, front);
-    box(parent, w, f, d, cx, -h / 2 + f / 2, zf + d / 2, front);
-    box(parent, f, h - 2 * f, d, cx - w / 2 + f / 2, 0, zf + d / 2, front);
-    box(parent, f, h - 2 * f, d, cx + w / 2 - f / 2, 0, zf + d / 2, front);
-    const p = f + Math.min(40, w * 0.08);
-    box(parent, w - 2 * p, h - 2 * p, 4, cx, 0, zf + 2, front);
-  }
+  if (state.fmat === "ldsp") box(parent, w, h, T, cx, 0, 0, front);
+  else millFace(parent, w, h, T, cx, 0, 0, front, style);
 }
 
 // дверь на петлях: hingeX — ребро боковины или перегородки, dir = +1 (дверь уходит влево от петли) или -1 (вправо)

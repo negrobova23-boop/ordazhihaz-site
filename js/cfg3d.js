@@ -1,4 +1,4 @@
-// Общее для 3D-конструкторов (шкаф, кухня): текстура дерева, материалы и детали-коробки.
+// Общее для 3D-конструкторов (шкаф, кухня, комод): текстура дерева, материалы и детали-коробки.
 import * as THREE from "three";
 
 export const mm = 0.001;
@@ -97,6 +97,98 @@ export function mat(c, rough) {
   if (o.wood) return new THREE.MeshStandardMaterial({ color: 0xffffff, map: woodTexture(o.color), roughness: rough == null ? 0.55 : rough, metalness: 0 });
   return new THREE.MeshStandardMaterial({ color: new THREE.Color(o.color), roughness, metalness: 0 });
 }
+// отступ рамки фрезеровки от края фасада (по нему же ставятся ручки, чтобы не попадать на рисунок)
+export const millInset = (w, h) => Math.min(60, w * 0.14, h * 0.14);
+const shade = (m, k) => { const c = m.clone(); c.color = c.color.clone().multiplyScalar(k); return c; };
+
+// МДФ-фасад w × h толщиной t с фрезеровкой; центр в (cx, cy), середина толщины — z.
+// modern — гладкий; vyborka — утопленная филёнка со ступенькой; relief (рифлёнка) — вертикальные желобки;
+// classic — рамка с филёнкой.
+export function millFace(parent, w, h, t, cx, cy, z, front, style) {
+  if (style === "relief" && w >= 60) return reliefFace(parent, w, h, t, cx, cy, z, front);
+  if (style === "modern" || w < 120 || h < 120) return box(parent, w, h, t, cx, cy, z, front);
+  const zf = z + t / 2;
+  if (style === "vyborka") {
+    const ins = millInset(w, h), gr = 6, dep = 4;                                   // ширина и глубина паза
+    box(parent, w - 2, h - 2, t - dep, cx, cy, z - dep / 2, shade(front, 0.68));      // дно паза
+    box(parent, w, ins, t, cx, cy + h / 2 - ins / 2, z, front);                       // рамка
+    box(parent, w, ins, t, cx, cy - h / 2 + ins / 2, z, front);
+    box(parent, ins, h - 2 * ins, t, cx - w / 2 + ins / 2, cy, z, front);
+    box(parent, ins, h - 2 * ins, t, cx + w / 2 - ins / 2, cy, z, front);
+    const fw = w - 2 * (ins + gr), fh = h - 2 * (ins + gr), ft = t - 2;              // филёнка на 2 мм ниже рамки
+    box(parent, fw, fh, ft, cx, cy, zf - 2 - ft / 2, front);
+    return;
+  }
+  if (style === "shtapik") {                                                          // накладная фигурная рейка по контуру
+    const ins = millInset(w, h), b = 14, d = 6, lo = shade(front, 0.88);
+    box(parent, w, h, t, cx, cy, z, front);
+    const rail = (rw, rh, x, y) => { box(parent, rw, rh, d * 0.5, x, y, zf + d * 0.25, lo); box(parent, rw - (rw > rh ? 0 : 6), rh - (rw > rh ? 6 : 0), d, x, y, zf + d / 2, front); };
+    rail(w - 2 * ins, b, cx, cy + h / 2 - ins); rail(w - 2 * ins, b, cx, cy - h / 2 + ins);
+    rail(b, h - 2 * ins - b, cx - w / 2 + ins, cy); rail(b, h - 2 * ins - b, cx + w / 2 - ins, cy);
+    return;
+  }
+  // classic: выступающая рамка и филёнка со скосом
+  const f = Math.min(85, w * 0.17, h * 0.17), d = 5;
+  box(parent, w, h, t, cx, cy, z, front);
+  box(parent, w, f, d, cx, cy + h / 2 - f / 2, zf + d / 2, front);
+  box(parent, w, f, d, cx, cy - h / 2 + f / 2, zf + d / 2, front);
+  box(parent, f, h - 2 * f, d, cx - w / 2 + f / 2, cy, zf + d / 2, front);
+  box(parent, f, h - 2 * f, d, cx + w / 2 - f / 2, cy, zf + d / 2, front);
+  const p = f + 16;                                                                  // филёнка: тень 6 мм, скос 10 мм
+  box(parent, w - 2 * f, h - 2 * f, 1.5, cx, cy, zf + 0.75, shade(front, 0.8));     // тень по внутреннему краю рамки
+  box(parent, w - 2 * p + 20, h - 2 * p + 20, 2.5, cx, cy, zf + 1.25, shade(front, 0.9));   // скос филёнки
+  box(parent, w - 2 * p, h - 2 * p, 5, cx, cy, zf + 2.5, front);
+}
+
+// рифлёнка: лицевая сторона — полукруглые желобки по всей ширине (шаг около 30 мм, глубина до 5 мм).
+// Желобки — гладкая поверхность с плавным светом и тенью, как у настоящего фрезерованного МДФ.
+function reliefFace(parent, w, h, t, cx, cy, z, front) {
+  const n = Math.max(3, Math.round(w / 30)), p = w / n, e = 1, c = p - 2 * e, s = Math.min(5, t * 0.32);
+  const R = (c * c / 4 + s * s) / (2 * s), seg = 14, zt = t / 2;
+  // профиль лицевой стороны: точки (x, z, нормаль nx, nz), гребни — узкие плоские полоски
+  const strips = [];
+  for (let k = 0; k < n; k++) {
+    const x0 = -w / 2 + k * p, xc = x0 + p / 2, pts = [];
+    for (let i = 0; i <= seg; i++) {
+      const dx = -c / 2 + (c * i) / seg, sq = Math.sqrt(R * R - dx * dx);
+      pts.push([xc + dx, zt - (sq - (R - s)), -dx / R, sq / R]);
+    }
+    strips.push([[x0, zt, 0, 1], [x0 + e, zt, 0, 1]], pts, [[x0 + p - e, zt, 0, 1], [x0 + p, zt, 0, 1]]);
+  }
+  const pos = [], nor = [], idx = [];
+  for (const st of strips) {
+    const b = pos.length / 3;
+    for (const [x, zz, nx, nz] of st) {
+      pos.push(x * mm, h / 2 * mm, zz * mm, x * mm, -h / 2 * mm, zz * mm);
+      nor.push(nx, 0, nz, nx, 0, nz);
+    }
+    for (let i = 0; i < st.length - 1; i++) { const a = b + 2 * i; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+  g.setIndex(idx);
+  const holder = new THREE.Group();
+  holder.position.set(cx * mm, cy * mm, z * mm);
+  parent.add(holder);
+  const surf = new THREE.Mesh(g, front);
+  surf.castShadow = true; surf.receiveShadow = true;
+  holder.add(surf);
+  box(holder, w, h, t - s, 0, 0, -s / 2, front);                                // тело фасада за желобками
+  // торцы сверху и снизу: виден профиль желобков
+  const prof = strips.flat();
+  for (const sgn of [1, -1]) {
+    // после поворота ось y фигуры становится осью z: сверху — с обратным знаком
+    const cap = new THREE.Shape(), k = -sgn * mm;
+    cap.moveTo(-w / 2 * mm, (zt - s) * k); cap.lineTo(w / 2 * mm, (zt - s) * k);
+    for (let i = prof.length - 1; i >= 0; i--) cap.lineTo(prof[i][0] * mm, prof[i][1] * k);
+    const cm = new THREE.Mesh(new THREE.ShapeGeometry(cap), front);
+    cm.rotation.x = -sgn * Math.PI / 2; cm.position.y = sgn * h / 2 * mm;
+    holder.add(cm);
+  }
+  return holder;
+}
+
 export function box(parent, w, h, d, x, y, z, material) {
   const g = new THREE.BoxGeometry(w * mm, h * mm, d * mm);
   if (material.map && !material.userData.plainUV) woodUV(g, w, h, d, x, y, z);   // мрамор и другие картинки — без развёртки дерева

@@ -8,7 +8,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { PRICES, DECORS, FILM_COLORS, PAINT_COLORS } from "./shkaf-prices.js";
 import { KITCHEN } from "./kuhnya-prices.js";
 import { makeKP } from "./shkaf-kp.js";
-import { mm, mat, box, woodSwatch, setAnisotropy } from "./cfg3d.js";
+import { mm, mat, box, millFace, woodSwatch, setAnisotropy } from "./cfg3d.js";
 
 const WA = "https://wa.me/77769994032";
 const $ = (s, r) => (r || document).querySelector(s);
@@ -383,17 +383,10 @@ function tick() {
   renderer.render(scene, camera);
 }
 
-// фасад с фрезеровкой (для МДФ): рамка поверх основной панели
+// фасад с фрезеровкой (для МДФ)
 function face(g, w, h, cx, cy, z, front) {
-  box(g, w, h, T, cx, cy, z, front);
-  if (state.fmat === "ldsp" || state.mill === "modern" || w < 120 || h < 120) return;
-  const ins = Math.min(55, w * 0.14, h * 0.14), b = state.mill === "classic" ? 40 : 10, d = state.mill === "vyborka" ? 1 : 5;
-  const m = state.mill === "vyborka" ? (() => { const c = front.clone(); c.color = c.color.clone().multiplyScalar(0.72); return c; })() : front;
-  const zf = z + T / 2 + d / 2;
-  box(g, w - 2 * ins, b, d, cx, cy + h / 2 - ins, zf, m);
-  box(g, w - 2 * ins, b, d, cx, cy - h / 2 + ins, zf, m);
-  box(g, b, h - 2 * ins, d, cx - w / 2 + ins, cy, zf, m);
-  box(g, b, h - 2 * ins, d, cx + w / 2 - ins, cy, zf, m);
+  if (state.fmat === "ldsp") box(g, w, h, T, cx, cy, z, front);
+  else millFace(g, w, h, T, cx, cy, z, front, state.mill);
 }
 // группа для стены: локальная ось x — вдоль стены, z — от стены в комнату
 function wallGroup(wall) {
