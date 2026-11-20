@@ -1,5 +1,39 @@
 // Оживление сайта: слайдер фото на главной, появление блоков при прокрутке, счётчик цифр, тень шапки.
-// Ничего не отправляется никуда. Если у посетителя включено «уменьшить анимацию», движение отключается.
+// Если у посетителя включено «уменьшить анимацию», движение отключается.
+// Внизу — цели Яндекс Метрики: какие важные кнопки нажимают (WhatsApp, звонок, КП, заявки).
+
+// ---------- цели Яндекс Метрики (счётчик 114397461) ----------
+// Идентификаторы целей совпадают с теми, что заведены в Метрике: «Цели» → «JavaScript-событие».
+(function () {
+  var ID = 114397461, d = document;
+  function goal(name, params) {
+    params = params || {};
+    params["страница"] = location.pathname;
+    if (window.ym) window.ym(ID, "reachGoal", name, params);
+  }
+  d.addEventListener("click", function (e) {
+    var t = e.target;
+    if (!t.closest) return;
+    var wa = t.closest('a[href^="https://wa.me/"]');
+    if (wa) {
+      // сразу открывает чат: окно выбора номера, меню WhatsApp в шапке, кнопки внизу страницы
+      var direct = wa.closest(".wa-pop, .wa-md-in, .cta-btns") || /^WhatsApp:\s/.test(wa.textContent.trim());
+      var to = /77761121288/.test(wa.href) ? "Руководитель" : "Отдел продаж";
+      if (direct) goal("whatsapp", { "кому": to });
+      else goal("whatsapp_button", { "кнопка": wa.textContent.trim().slice(0, 60) });
+      if (wa.id === "cfg-send") goal("konstruktor_whatsapp");
+      return;
+    }
+    if (t.closest('a[href^="tel:"]')) { goal("phone"); return; }
+    if (t.closest("#cfg-kp")) { goal("kp_download"); return; }
+    var soc = t.closest('a[href*="instagram.com"], a[href*="2gis."], a[href*="maps.app.goo.gl"]');
+    if (soc) goal("social", { "куда": soc.hostname });
+  }, true);
+  d.addEventListener("submit", function (e) {
+    goal("form_send", { "форма": e.target.id || e.target.className || "form" });
+  }, true);
+})();
+
 (function () {
   var d = document;
   d.documentElement.classList.add("js");
